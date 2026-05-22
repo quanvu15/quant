@@ -1,0 +1,1396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fincept AI — Intent-First Chat</title>
+<style>
+:root {
+  --bg:#0d1117;--bg2:#161b22;--bg3:#21262d;--bg4:#2d333b;
+  --border:#30363d;--border2:#444c56;
+  --text:#e6edf3;--text2:#8b949e;--text3:#6e7681;
+  --amber:#d29922;--amber2:#e3b341;--orange:#ffa657;
+  --green:#3fb950;--red:#f85149;--blue:#58a6ff;--blue2:#388bfd;
+  --purple:#bc8cff;--cyan:#39d353;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;font-size:14px;height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+.header{background:var(--bg2);border-bottom:1px solid var(--border);padding:0 20px;height:52px;display:flex;align-items:center;gap:16px;flex-shrink:0;}
+.logo{font-weight:700;font-size:17px;color:var(--amber);letter-spacing:-.5px;display:flex;align-items:center;gap:8px;}
+.header-right{margin-left:auto;display:flex;align-items:center;gap:12px;}
+.api-pill{display:flex;align-items:center;gap:6px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:12px;color:var(--text2);cursor:pointer;}
+.api-pill:hover{border-color:var(--amber);color:var(--text);}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--text3);}
+.dot.ok{background:var(--green);box-shadow:0 0 5px var(--green);}
+.mode-tabs{display:flex;gap:2px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:3px;}
+.mode-tab{padding:4px 12px;border-radius:5px;font-size:12px;font-weight:500;cursor:pointer;color:var(--text2);transition:all .15s;}
+.mode-tab.active{background:var(--bg2);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.3);}
+.main{flex:1;display:flex;overflow:hidden;}
+</style>
+<style>
+/* Sidebar */
+.sidebar{width:260px;border-right:1px solid var(--border);background:var(--bg2);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden;}
+.sidebar-header{padding:14px 16px 10px;border-bottom:1px solid var(--border);}
+.sidebar-title{font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px;}
+.new-chat-btn{width:100%;padding:8px;background:var(--amber);color:var(--bg);border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;}
+.new-chat-btn:hover{background:var(--amber2);}
+.session-list{flex:1;overflow-y:auto;padding:6px;}
+.session-item{padding:8px 10px;border-radius:6px;cursor:pointer;font-size:12px;color:var(--text2);margin-bottom:2px;display:flex;align-items:center;gap:8px;}
+.session-item:hover{background:var(--bg3);color:var(--text);}
+.session-item.active{background:rgba(210,153,34,.12);color:var(--amber);border-left:2px solid var(--amber);}
+.session-icon{font-size:14px;flex-shrink:0;}
+.session-text{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.sidebar-footer{padding:12px 16px;border-top:1px solid var(--border);}
+.llm-info{font-size:11px;}
+.llm-provider{color:var(--amber);font-weight:600;}
+.llm-model{color:var(--text3);margin-top:2px;}
+/* Intent badge */
+.intent-badge{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px;}
+.intent-simple{background:rgba(88,166,255,.12);color:var(--blue);}
+.intent-data{background:rgba(63,185,80,.12);color:var(--green);}
+.intent-analysis{background:rgba(210,153,34,.12);color:var(--amber);}
+.intent-report{background:rgba(188,140,255,.12);color:var(--purple);}
+.intent-macro{background:rgba(57,211,83,.12);color:var(--cyan);}
+.intent-trade{background:rgba(255,166,87,.12);color:var(--orange);}
+</style>
+<style>
+/* Chat area */
+.chat-area{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+.chat-header{padding:10px 20px;border-bottom:1px solid var(--border);background:var(--bg2);display:flex;align-items:center;gap:10px;flex-shrink:0;}
+.chat-title{font-weight:600;font-size:14px;flex:1;}
+.agent-badge{display:flex;align-items:center;gap:6px;background:var(--bg3);border:1px solid var(--border);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--text2);}
+.agent-badge .agent-dot{width:6px;height:6px;border-radius:50%;background:var(--green);}
+.token-count{font-size:11px;color:var(--text3);}
+.messages{flex:1;overflow-y:auto;padding:20px 28px;display:flex;flex-direction:column;gap:16px;}
+/* Welcome */
+.welcome{display:flex;flex-direction:column;align-items:center;padding:36px 20px;gap:24px;}
+.welcome-title{font-size:24px;font-weight:700;color:var(--text);text-align:center;}
+.welcome-sub{font-size:13px;color:var(--text2);text-align:center;max-width:480px;line-height:1.6;}
+.context-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;width:100%;max-width:680px;}
+.context-card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px;cursor:pointer;transition:all .15s;display:flex;flex-direction:column;gap:6px;}
+.context-card:hover{border-color:var(--amber);background:var(--bg3);transform:translateY(-1px);}
+.card-icon{font-size:20px;}
+.card-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;}
+.card-desc{font-size:12px;color:var(--text2);line-height:1.5;}
+.card-example{font-size:11px;color:var(--text3);font-style:italic;}
+/* Persona */
+.persona-bar{display:flex;gap:8px;width:100%;max-width:680px;flex-wrap:wrap;justify-content:center;}
+.persona-chip{display:flex;align-items:center;gap:6px;padding:6px 14px;border-radius:20px;border:1px solid var(--border);background:var(--bg3);cursor:pointer;font-size:12px;color:var(--text2);transition:all .15s;}
+.persona-chip:hover{border-color:var(--purple);color:var(--text);}
+.persona-chip.active{border-color:var(--purple);background:rgba(188,140,255,.12);color:var(--purple);}
+</style>
+<style>
+/* Message bubbles */
+.msg-row{display:flex;gap:10px;align-items:flex-start;}
+.msg-row.user{flex-direction:row-reverse;}
+.msg-avatar{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;border:1px solid var(--border);}
+.msg-avatar.user-av{background:var(--blue2);}
+.msg-avatar.ai-av{background:var(--bg3);}
+.msg-content{max-width:74%;display:flex;flex-direction:column;gap:3px;}
+.msg-row.user .msg-content{align-items:flex-end;}
+.msg-bubble{padding:10px 14px;border-radius:12px;font-size:13px;line-height:1.65;white-space:pre-wrap;word-break:break-word;}
+.msg-bubble.user-bubble{background:var(--blue2);color:#fff;border-radius:12px 12px 4px 12px;}
+.msg-bubble.ai-bubble{background:var(--bg2);border:1px solid var(--border);border-radius:12px 12px 12px 4px;}
+.msg-meta{font-size:10px;color:var(--text3);display:flex;align-items:center;gap:5px;flex-wrap:wrap;}
+/* Thinking card — collapsible, like ChatModeScreen */
+.thinking-card{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:11px;max-width:74%;cursor:pointer;user-select:none;}
+.thinking-card-header{display:flex;align-items:center;gap:8px;color:var(--text3);}
+.thinking-card-header:hover{color:var(--text2);}
+.thinking-card-icon{font-size:12px;}
+.thinking-card-summary{flex:1;}
+.thinking-card-toggle{font-size:10px;color:var(--text3);}
+.thinking-card-body{display:none;margin-top:8px;border-top:1px solid var(--border);padding-top:8px;}
+.thinking-card.open .thinking-card-body{display:block;}
+.thinking-card.open .thinking-card-toggle{transform:rotate(180deg);}
+.thinking-step{display:flex;align-items:flex-start;gap:6px;padding:3px 0;font-size:11px;color:var(--text2);}
+.thinking-step.tool{color:var(--amber);}
+.thinking-step.think{color:var(--text3);font-style:italic;}
+/* Live trace (while streaming) */
+.live-trace{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-size:11px;max-width:74%;}
+.live-trace-header{display:flex;align-items:center;gap:8px;color:var(--amber);font-weight:600;margin-bottom:6px;}
+.live-step{display:flex;align-items:center;gap:7px;padding:3px 0;color:var(--text2);border-bottom:1px solid rgba(48,54,61,.4);}
+.live-step:last-child{border-bottom:none;}
+.live-step.done{color:var(--green);}
+.live-step.active{color:var(--amber);}
+.live-step.pending{color:var(--text3);}
+.step-icon{flex-shrink:0;width:14px;text-align:center;}
+.step-text{flex:1;line-height:1.5;}
+.step-badge{display:inline-block;padding:1px 6px;border-radius:8px;font-size:10px;font-weight:600;margin-left:5px;}
+.badge-intent{background:rgba(88,166,255,.15);color:var(--blue);}
+.badge-agent{background:rgba(63,185,80,.15);color:var(--green);}
+.badge-tool{background:rgba(210,153,34,.15);color:var(--amber);}
+/* Debate */
+.debate-container{display:flex;gap:12px;max-width:92%;}
+.debate-side{flex:1;border-radius:10px;padding:12px;font-size:12px;line-height:1.6;}
+.debate-bull{background:rgba(63,185,80,.08);border:1px solid rgba(63,185,80,.3);}
+.debate-bear{background:rgba(248,81,73,.08);border:1px solid rgba(248,81,73,.3);}
+.debate-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;}
+.debate-bull .debate-label{color:var(--green);}
+.debate-bear .debate-label{color:var(--red);}
+.debate-verdict{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:12px 14px;font-size:12px;margin-top:10px;max-width:92%;}
+.verdict-label{font-size:11px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;}
+</style>
+<style>
+/* Input */
+.input-area{border-top:1px solid var(--border);padding:12px 20px;background:var(--bg2);flex-shrink:0;}
+.input-row{display:flex;gap:10px;align-items:flex-end;}
+.input-box{flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:10px;resize:none;font-size:13px;font-family:inherit;outline:none;min-height:44px;max-height:120px;line-height:1.5;transition:border-color .15s;}
+.input-box:focus{border-color:var(--amber);}
+.input-actions{display:flex;gap:6px;align-items:center;}
+.send-btn{height:44px;padding:0 18px;background:var(--amber);color:var(--bg);border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;transition:background .15s;flex-shrink:0;}
+.send-btn:hover:not(:disabled){background:var(--amber2);}
+.send-btn:disabled{opacity:.5;cursor:not-allowed;}
+.stop-btn{height:44px;padding:0 14px;background:rgba(248,81,73,.15);color:var(--red);border:1px solid rgba(248,81,73,.3);border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;display:none;}
+.stop-btn:hover{background:rgba(248,81,73,.25);}
+.input-hints{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;}
+.hint-chip{padding:3px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:12px;font-size:11px;color:var(--text2);cursor:pointer;transition:all .1s;}
+.hint-chip:hover{border-color:var(--amber);color:var(--amber);}
+/* Mode panel */
+.mode-panel{width:240px;border-left:1px solid var(--border);background:var(--bg2);overflow-y:auto;flex-shrink:0;}
+.mode-section{padding:14px 14px 10px;border-bottom:1px solid var(--border);}
+.mode-section-title{font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;}
+.mode-option{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:7px;cursor:pointer;font-size:12px;color:var(--text2);transition:all .1s;margin-bottom:4px;border:1px solid transparent;}
+.mode-option:hover{background:var(--bg3);color:var(--text);}
+.mode-option.selected{background:rgba(210,153,34,.1);border-color:rgba(210,153,34,.3);color:var(--amber);}
+.mode-icon{font-size:16px;flex-shrink:0;}
+.mode-name{font-weight:500;}
+.mode-desc{font-size:10px;color:var(--text3);margin-top:1px;}
+.debate-symbol-input{width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:12px;outline:none;margin-bottom:8px;}
+.debate-symbol-input:focus{border-color:var(--amber);}
+.debate-btn{width:100%;padding:7px;background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:6px;font-size:12px;cursor:pointer;transition:all .15s;}
+.debate-btn:hover{border-color:var(--amber);color:var(--amber);}
+/* Misc */
+::-webkit-scrollbar{width:5px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+@keyframes spin{to{transform:rotate(360deg);}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.pulse{animation:pulse 1.2s ease-in-out infinite;}
+.spin{animation:spin .6s linear infinite;display:inline-block;}
+#toast{position:fixed;bottom:20px;right:20px;background:var(--bg3);border:1px solid var(--border);padding:10px 16px;border-radius:8px;font-size:12px;z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none;}
+#toast.show{opacity:1;}
+#toast.ok{border-color:var(--green);color:var(--green);}
+#toast.err{border-color:var(--red);color:var(--red);}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1000;display:none;align-items:center;justify-content:center;}
+.modal-overlay.show{display:flex;}
+.modal{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:24px;width:480px;max-width:95vw;}
+.modal-title{font-size:16px;font-weight:700;margin-bottom:16px;}
+.modal-field{margin-bottom:12px;}
+.modal-label{font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;}
+.modal-input{width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:7px;font-size:13px;outline:none;}
+.modal-input:focus{border-color:var(--amber);}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;}
+.btn{padding:7px 16px;border-radius:7px;border:none;cursor:pointer;font-size:13px;font-weight:500;}
+.btn-primary{background:var(--amber);color:var(--bg);}
+.btn-primary:hover{background:var(--amber2);}
+.btn-secondary{background:var(--bg3);color:var(--text);border:1px solid var(--border);}
+.btn-secondary:hover{border-color:var(--text2);}
+</style>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="logo"><span>⚡</span> Fincept AI</div>
+  <div class="mode-tabs">
+    <div class="mode-tab active" onclick="setMode('chat')" id="mtab-chat">💬 Chat</div>
+    <div class="mode-tab" onclick="setMode('debate')" id="mtab-debate">⚔️ Bull vs Bear</div>
+    <div class="mode-tab" onclick="setMode('persona')" id="mtab-persona">🎭 Persona</div>
+  </div>
+  <div class="header-right">
+    <div class="api-pill" onclick="showConfig()">
+      <div class="dot" id="status-dot"></div>
+      <span id="status-text">Connecting...</span>
+    </div>
+  </div>
+</div>
+
+<div class="main">
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-title">Conversations</div>
+      <button class="new-chat-btn" onclick="newChat()">＋ New Chat</button>
+    </div>
+    <div class="session-list" id="session-list">
+      <div class="session-item active" id="sess-current">
+        <span class="session-icon">💬</span>
+        <span class="session-text">New Conversation</span>
+      </div>
+    </div>
+    <div class="sidebar-footer">
+      <div class="llm-info">
+        <div class="llm-provider" id="llm-provider">No provider</div>
+        <div class="llm-model" id="llm-model">Configure in settings</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHAT AREA -->
+  <div class="chat-area">
+    <div class="chat-header">
+      <div class="chat-title" id="chat-title">New Conversation</div>
+      <div class="agent-badge" id="agent-badge" style="display:none">
+        <div class="agent-dot"></div>
+        <span id="agent-badge-text">Auto-routing</span>
+      </div>
+      <div class="token-count" id="token-count"></div>
+    </div>
+    <div class="messages" id="messages"></div>
+    <div class="input-area">
+      <div class="input-row">
+        <textarea class="input-box" id="input-box" placeholder="Ask anything about markets, portfolios, macro..." rows="1"
+          onkeydown="inputKeydown(event)" oninput="autoResize(this)"></textarea>
+        <div class="input-actions">
+          <button class="stop-btn" id="stop-btn" onclick="stopStream()">■ Stop</button>
+          <button class="send-btn" id="send-btn" onclick="sendMessage()">Send ↑</button>
+        </div>
+      </div>
+      <div class="input-hints" id="input-hints">
+        <span class="hint-chip" onclick="fillInput('Analyze AAPL stock — give me a buy/sell thesis')">📈 Analyze AAPL</span>
+        <span class="hint-chip" onclick="fillInput('What is the current macro environment? CPI, Fed policy, yield curve')">🌐 Macro scan</span>
+        <span class="hint-chip" onclick="fillInput('Size a long position in NVDA with 1% account risk')">⚡ Trade sizing</span>
+        <span class="hint-chip" onclick="fillInput('What geopolitical risks should I watch this week?')">🌍 Geopolitics</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODE PANEL -->
+  <div class="mode-panel" id="mode-panel"></div>
+</div>
+
+<!-- CONFIG MODAL -->
+<div class="modal-overlay" id="config-modal">
+  <div class="modal">
+    <div class="modal-title">⚙️ API Configuration</div>
+    <div class="modal-field">
+      <div class="modal-label">Backend</div>
+      <select class="modal-input" id="cfg-backend" onchange="toggleBackendFields(this.value)">
+        <option value="local">Local (fincept-api localhost)</option>
+        <option value="fincept">Fincept Cloud (api.fincept.in)</option>
+      </select>
+    </div>
+    <div id="local-fields">
+      <div class="modal-field"><div class="modal-label">Local API URL</div><input class="modal-input" id="cfg-url" value="http://localhost:8081"></div>
+      <div class="modal-field"><div class="modal-label">Local API Key</div><input class="modal-input" id="cfg-key" value="fincept_admin_dev_key_local"></div>
+      <div class="modal-field"><div class="modal-label">LLM Model (để trống = dùng server default)</div><input class="modal-input" id="cfg-model" placeholder="e.g. gpt-4o-mini (để trống = server .env)"></div>
+      <div class="modal-field"><div class="modal-label">LLM Base URL (để trống = dùng server default)</div><input class="modal-input" id="cfg-llm-url" placeholder="e.g. https://api.chainhub.tech/v1 (để trống = server .env)"></div>
+      <div class="modal-field"><div class="modal-label">LLM API Key (để trống = dùng server default)</div><input class="modal-input" id="cfg-llm-key" type="password" placeholder="Để trống = dùng LLM_API_KEY từ server .env"></div>
+    </div>
+    <div id="fincept-fields" style="display:none">
+      <div class="modal-field"><div class="modal-label">Fincept API Key (X-API-Key)</div><input class="modal-input" id="cfg-fincept-key" type="password" placeholder="From your Fincept account"></div>
+      <div class="modal-field"><div class="modal-label">Session Token (X-Session-Token)</div><input class="modal-input" id="cfg-fincept-token" type="password" placeholder="Optional — from AuthManager"></div>
+      <div class="modal-field"><div class="modal-label">LLM Profile ID</div><input class="modal-input" id="cfg-profile-id" value="1" type="number"></div>
+      <div style="font-size:11px;color:var(--text3);padding:4px 0">
+        Uses <code style="background:var(--bg3);padding:1px 4px;border-radius:3px">POST /chat/agent/stream</code> with named SSE events<br>
+        (session-meta, text-delta, tool-end, step-start, step-finish, thinking, finish, heartbeat)
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeConfig()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveConfig()">Save & Test</button>
+    </div>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// CONFIG & STATE
+// Two modes:
+//   FINCEPT  → api.fincept.in/chat/agent/stream  (named SSE events, session-based)
+//   LOCAL    → localhost:8081/api/v1/agents/run/stream  (type-in-data SSE)
+// ═══════════════════════════════════════════════════════════════
+let cfg = {
+  // Fincept cloud backend (mirrors fincept-qt ChatModeService)
+  finceptUrl:   'https://api.fincept.in',
+  finceptKey:   '',          // X-API-Key from AuthManager
+  finceptToken: '',          // X-Session-Token from AuthManager
+  profileId:    1,           // LLM profile id (1 = default)
+
+  // Local fincept-api fallback
+  localUrl:  'http://localhost:8081',
+  localKey:  'fincept_admin_dev_key_local',
+  // Leave model/llmUrl/llmKey empty → server uses its own .env defaults
+  // (LLM_MODEL, LLM_BASE_URL, LLM_API_KEY from fincept-api/.env)
+  model:     '',
+  llmUrl:    '',
+  llmKey:    '',
+
+  // Which backend to use
+  backend: 'local'  // 'fincept' | 'local'
+};
+
+const $ = id => document.getElementById(id);
+
+// Headers per backend
+function apiHeaders() {
+  if (cfg.backend === 'fincept') {
+    const h = {'Content-Type':'application/json','X-API-Key':cfg.finceptKey,'User-Agent':'FinceptTerminal/4.0'};
+    if (cfg.finceptToken) h['X-Session-Token'] = cfg.finceptToken;
+    return h;
+  }
+  return {'Content-Type':'application/json','X-API-Key':cfg.localKey};
+}
+function apiUrl(path) {
+  return cfg.backend === 'fincept' ? cfg.finceptUrl + path : cfg.localUrl + path;
+}
+const llmConfig = () => ({model:cfg.model, api_key:cfg.llmKey, base_url:cfg.llmUrl});
+
+let currentMode = 'chat';
+let currentPersona = null;
+let totalTokens = 0;
+let isStreaming = false;
+let abortController = null;
+let activeSessionId = null;  // server-side session UUID (fincept backend)
+
+function toast(msg, type='') {
+  const t=$('toast'); t.textContent=msg; t.className='show '+type;
+  setTimeout(()=>t.className='',3000);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// INTENT CLASSIFIER — client-side, zero latency
+// Maps query → intent type → determines system prompt module + tool budget
+// ═══════════════════════════════════════════════════════════════
+const INTENT_RULES = [
+  { type:'REPORT',   label:'Report Build',    badge:'report',   icon:'📄',
+    color:'intent-report',   maxRounds:20,
+    patterns:[/\b(report|research report|write.*report|create.*report|build.*report|equity research)\b/i] },
+  { type:'ANALYSIS', label:'Deep Analysis',   badge:'analysis', icon:'🔬',
+    color:'intent-analysis', maxRounds:8,
+    patterns:[/\b(analyz|analyse|thesis|fundamental|valuation|dcf|earnings|sector|industry|compare)\b/i] },
+  { type:'MACRO',    label:'Macro / Geo',     badge:'macro',    icon:'🌍',
+    color:'intent-macro',    maxRounds:6,
+    patterns:[/\b(macro|cpi|inflation|fed|fomc|yield curve|gdp|geopolit|central bank|rate|recession)\b/i] },
+  { type:'TRADE',    label:'Trade Idea',      badge:'trade',    icon:'⚡',
+    color:'intent-trade',    maxRounds:5,
+    patterns:[/\b(trade|position|entry|stop.?loss|target|risk.?reward|size|sizing|long|short|buy|sell)\b/i] },
+  { type:'DATA',     label:'Data Lookup',     badge:'data',     icon:'📊',
+    color:'intent-data',     maxRounds:3,
+    patterns:[/\b(price|quote|chart|candle|volume|market cap|pe ratio|eps|revenue|balance sheet|cash flow)\b/i] },
+  { type:'SIMPLE',   label:'Quick Answer',    badge:'qa',       icon:'💬',
+    color:'intent-simple',   maxRounds:0,
+    patterns:[/.*/] } // fallback
+];
+
+function classifyIntent(text) {
+  for (const rule of INTENT_RULES) {
+    if (rule.patterns.some(p => p.test(text))) return rule;
+  }
+  return INTENT_RULES[INTENT_RULES.length - 1];
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MODULAR SYSTEM PROMPTS — only inject what the intent needs
+// ═══════════════════════════════════════════════════════════════
+const PROMPT_BASE = `You are Fincept AI, an intelligent financial assistant inside the Fincept Terminal. Be concise, accurate, and finance-focused.`;
+
+const PROMPT_MODULES = {
+  SIMPLE:   '',
+  DATA:     `\nFocus on providing accurate, up-to-date market data. State the data source and timestamp when relevant. If data is unavailable, say so clearly.`,
+  ANALYSIS: `\nProvide deep fundamental analysis. Structure your response with: 1) Key metrics with specific numbers, 2) Bull/bear thesis, 3) Key risks, 4) Valuation context vs peers. Be specific — avoid vague statements.`,
+  MACRO:    `\nAnalyze macro environment systematically: inflation/CPI trends, central bank policy stance, yield curve shape, geopolitical risks, and asset class implications. Use data points where possible.`,
+  TRADE:    `\nHelp plan the trade with: entry price rationale, ATR-based stop loss, position size (1% account risk default), risk/reward ratio, and key invalidation levels. Ask for account size if not provided.`,
+  REPORT:   `\nYou are building a structured research report. Design a unique outline for this specific subject — do NOT use a generic template. Build section by section with real data. Each section should have substantive content, not placeholders.`
+};
+
+function buildSystemPrompt(intentType, personaInstructions) {
+  if (personaInstructions) return personaInstructions;
+  return PROMPT_BASE + (PROMPT_MODULES[intentType] || '');
+}
+</script>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// PERSONAS
+// ═══════════════════════════════════════════════════════════════
+const PERSONAS = [
+  { id:'buffett', name:'Warren Buffett', avatar:'🎩', color:'#3fb950',
+    desc:'Value investing, long-term, moat-focused',
+    instructions:'You are Warren Buffett. Analyze investments through the lens of value investing: focus on intrinsic value, economic moats, management quality, and long-term compounding. Be patient, conservative, and skeptical of complexity. Always ask: "Would I be comfortable holding this for 10 years?"' },
+  { id:'soros', name:'George Soros', avatar:'🌊', color:'#58a6ff',
+    desc:'Macro, reflexivity, global flows',
+    instructions:'You are George Soros. Apply reflexivity theory — markets are shaped by participant perceptions which in turn shape fundamentals. Focus on macro trends, currency flows, central bank policy, and identifying when market narratives diverge from reality.' },
+  { id:'rentech', name:'RenTech Medallion', avatar:'🔬', color:'#bc8cff',
+    desc:'Quant, systematic, statistical signals',
+    instructions:'You are a Renaissance Technologies Medallion Fund quant analyst. Think in terms of statistical signals, mean reversion, momentum factors, and systematic patterns. Demand p-values and statistical significance. Avoid narrative-based reasoning.' },
+  { id:'dalio', name:'Ray Dalio', avatar:'⚖️', color:'#d29922',
+    desc:'All Weather, risk parity, macro cycles',
+    instructions:'You are Ray Dalio. Apply the All Weather framework: balance risk across asset classes for different economic environments. Think in terms of debt cycles, deleveraging, and the "beautiful deleveraging" concept.' },
+];
+
+const CONTEXT_CARDS = [
+  { icon:'📈', label:'Stock Research', color:'#3fb950', desc:'Deep fundamental & technical analysis',
+    example:'"Analyze AAPL — give me a full thesis"',
+    prompt:'Analyze AAPL stock. Give me: 1) Key fundamentals (P/E, FCF, margins), 2) Valuation vs peers, 3) Bull/bear thesis, 4) Key risks. Be specific with numbers.' },
+  { icon:'💼', label:'My Portfolio', color:'#58a6ff', desc:'Review holdings, rebalancing, risk',
+    example:'"Review my portfolio allocation"',
+    prompt:'I want to review my portfolio. Help me analyze allocation, identify concentration risks, and suggest rebalancing if needed. Ask me for my holdings.' },
+  { icon:'🌍', label:'Macro & Geopolitics', color:'#bc8cff', desc:'Global macro, central banks, conflicts',
+    example:'"What macro risks matter this week?"',
+    prompt:'Give me a comprehensive macro brief: current CPI/inflation trends, Fed policy stance, yield curve shape, key geopolitical risks, and what this means for equities and bonds.' },
+  { icon:'⚡', label:'Trade Ideas', color:'#d29922', desc:'Entry/exit, position sizing, risk/reward',
+    example:'"Size a long position in NVDA"',
+    prompt:'I want to plan a trade. Help me with: entry price, stop loss (ATR-based), position size (1% account risk), and target. Tell me what info you need.' },
+  { icon:'🔬', label:'Deep Research', color:'#ffa657', desc:'Sector studies, industry analysis',
+    example:'"Research the AI chip sector"',
+    prompt:'I want a deep research report on the AI chip sector: market size, key players, competitive dynamics, and investment implications.' },
+  { icon:'📊', label:'Economics', color:'#39d353', desc:'GDP, inflation, central banks, FRED data',
+    example:'"Show me US inflation trends"',
+    prompt:'I want to understand the current economic environment. Show me key indicators: CPI, GDP growth, unemployment, Fed funds rate, and what the data suggests about the economic cycle.' },
+];
+</script>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// HEALTH CHECK & MODE SWITCHING
+// ═══════════════════════════════════════════════════════════════
+async function checkHealth() {
+  if (cfg.backend === 'fincept') {
+    // Fincept backend: check credits endpoint as health proxy
+    try {
+      const r = await fetch(apiUrl('/user/profile'), {headers: apiHeaders()});
+      if (r.ok) {
+        const d = await r.json();
+        const credits = d?.data?.credit_balance ?? '?';
+        $('status-dot').className='dot ok';
+        $('status-text').textContent=`Fincept · ${credits} credits`;
+        $('llm-provider').textContent='Fincept AI';
+        $('llm-model').textContent=`Profile ${cfg.profileId}`;
+      } else {
+        $('status-dot').className='dot';
+        $('status-text').textContent=`Auth error (${r.status})`;
+      }
+    } catch(e) {
+      $('status-dot').className='dot';
+      $('status-text').textContent='Fincept offline';
+    }
+  } else {
+    // Local fincept-api
+    try {
+      const r = await fetch(apiUrl('/health'));
+      const d = await r.json();
+      $('status-dot').className='dot ok';
+      $('status-text').textContent=`v${d.version} · ${d.redis==='ok'?'Redis ✓':'Redis ✗'}`;
+      $('llm-provider').textContent=cfg.llmUrl.includes('openai.com')?'OpenAI':'Custom LLM';
+      $('llm-model').textContent=cfg.model;
+    } catch(e) {
+      $('status-dot').className='dot';
+      $('status-text').textContent='Local API offline';
+    }
+  }
+}
+
+function setMode(mode) {
+  currentMode=mode;
+  ['chat','debate','persona'].forEach(m=>$('mtab-'+m).classList.toggle('active',m===mode));
+  renderModePanel();
+  if(mode==='chat') renderWelcome();
+  else if(mode==='debate') renderDebateWelcome();
+  else renderPersonaWelcome();
+}
+
+function renderModePanel() {
+  const panel=$('mode-panel');
+  if(currentMode==='chat') {
+    panel.innerHTML=`
+      <div class="mode-section">
+        <div class="mode-section-title">Intent Routing</div>
+        <div class="mode-option selected"><span class="mode-icon">🧠</span><div><div class="mode-name">Auto-Classify</div><div class="mode-desc">Detects intent, picks prompt module</div></div></div>
+        <div style="padding:8px 10px;font-size:11px;color:var(--text3);line-height:1.6">
+          Intent types:<br>
+          <span class="step-badge badge-intent" style="margin:2px 0;display:inline-block">SIMPLE</span> → 0 tool rounds<br>
+          <span class="step-badge badge-intent" style="margin:2px 0;display:inline-block">DATA</span> → max 3 rounds<br>
+          <span class="step-badge badge-intent" style="margin:2px 0;display:inline-block">ANALYSIS</span> → max 8 rounds<br>
+          <span class="step-badge badge-intent" style="margin:2px 0;display:inline-block">MACRO/TRADE</span> → max 5-6<br>
+          <span class="step-badge badge-intent" style="margin:2px 0;display:inline-block">REPORT</span> → max 20 rounds
+        </div>
+      </div>
+      <div class="mode-section">
+        <div class="mode-section-title">Options</div>
+        <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text2);cursor:pointer;padding:4px 0">
+          <input type="checkbox" id="stream-toggle" checked style="accent-color:var(--amber)"> SSE streaming
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text2);cursor:pointer;padding:4px 0;margin-top:4px">
+          <input type="checkbox" id="trace-toggle" checked style="accent-color:var(--amber)"> Show live trace
+        </label>
+      </div>`;
+  } else if(currentMode==='debate') {
+    panel.innerHTML=`
+      <div class="mode-section">
+        <div class="mode-section-title">Bull vs Bear Debate</div>
+        <p style="font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:12px">Two AI agents debate a stock — one bullish, one bearish.</p>
+        <div class="modal-label" style="margin-bottom:5px">Symbol to debate</div>
+        <input class="debate-symbol-input" id="debate-symbol" placeholder="e.g. AAPL, NVDA, TSLA" value="AAPL">
+        <button class="debate-btn" onclick="startDebate()">⚔️ Start Debate</button>
+      </div>`;
+  } else {
+    panel.innerHTML=`
+      <div class="mode-section">
+        <div class="mode-section-title">Active Persona</div>
+        ${PERSONAS.map(p=>`
+          <div class="mode-option ${currentPersona?.id===p.id?'selected':''}" onclick="selectPersona('${p.id}')">
+            <span class="mode-icon">${p.avatar}</span>
+            <div><div class="mode-name">${p.name}</div><div class="mode-desc">${p.desc}</div></div>
+          </div>`).join('')}
+        <div class="mode-option ${!currentPersona?'selected':''}" onclick="selectPersona(null)">
+          <span class="mode-icon">🤖</span>
+          <div><div class="mode-name">Default AI</div><div class="mode-desc">No persona</div></div>
+        </div>
+      </div>`;
+  }
+}
+</script>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// WELCOME SCREENS
+// ═══════════════════════════════════════════════════════════════
+function renderWelcome() {
+  $('messages').innerHTML=`
+    <div class="welcome">
+      <div class="welcome-title">What do you want to explore?</div>
+      <div class="welcome-sub">Intent-first routing: your query is classified before calling the LLM — only the relevant system prompt module and tools are loaded.</div>
+      <div class="context-grid">
+        ${CONTEXT_CARDS.map(c=>`
+          <div class="context-card" onclick="fillInput(${JSON.stringify(c.prompt)})">
+            <div class="card-icon">${c.icon}</div>
+            <div class="card-label" style="color:${c.color}">${c.label}</div>
+            <div class="card-desc">${c.desc}</div>
+            <div class="card-example">${c.example}</div>
+          </div>`).join('')}
+      </div>
+    </div>`;
+}
+
+function renderPersonaWelcome() {
+  $('messages').innerHTML=`
+    <div class="welcome">
+      <div class="welcome-title">🎭 Persona Mode</div>
+      <div class="welcome-sub">Chat with legendary investors. Each persona replaces the system prompt entirely.</div>
+      <div class="persona-bar">
+        ${PERSONAS.map(p=>`
+          <div class="persona-chip ${currentPersona?.id===p.id?'active':''}" onclick="selectPersona('${p.id}')">
+            <span>${p.avatar}</span> ${p.name}
+          </div>`).join('')}
+        <div class="persona-chip ${!currentPersona?'active':''}" onclick="selectPersona(null)">🤖 Default</div>
+      </div>
+      ${currentPersona?`
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px;max-width:480px;text-align:center">
+          <div style="font-size:30px;margin-bottom:8px">${currentPersona.avatar}</div>
+          <div style="font-weight:700;font-size:15px;margin-bottom:6px">${currentPersona.name}</div>
+          <div style="font-size:12px;color:var(--text2);line-height:1.6">${currentPersona.desc}</div>
+        </div>`:''}
+    </div>`;
+}
+
+function renderDebateWelcome() {
+  $('messages').innerHTML=`
+    <div class="welcome">
+      <div class="welcome-title">⚔️ Bull vs Bear Debate</div>
+      <div class="welcome-sub">Two parallel agent calls — bull and bear run simultaneously, then a neutral verdict synthesizes both.</div>
+      <div style="display:flex;gap:16px;max-width:560px">
+        <div style="flex:1;background:rgba(63,185,80,.08);border:1px solid rgba(63,185,80,.3);border-radius:10px;padding:14px;text-align:center">
+          <div style="font-size:26px">🐂</div>
+          <div style="font-weight:700;color:var(--green);margin:6px 0">Bull Agent</div>
+          <div style="font-size:12px;color:var(--text2)">Strongest case for buying</div>
+        </div>
+        <div style="flex:1;background:rgba(248,81,73,.08);border:1px solid rgba(248,81,73,.3);border-radius:10px;padding:14px;text-align:center">
+          <div style="font-size:26px">🐻</div>
+          <div style="font-weight:700;color:var(--red);margin:6px 0">Bear Agent</div>
+          <div style="font-size:12px;color:var(--text2)">Strongest case for selling</div>
+        </div>
+        <div style="flex:1;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center">
+          <div style="font-size:26px">⚖️</div>
+          <div style="font-weight:700;color:var(--amber);margin:6px 0">Verdict</div>
+          <div style="font-size:12px;color:var(--text2)">Neutral synthesis</div>
+        </div>
+      </div>
+      <div style="font-size:13px;color:var(--text2)">Enter a symbol in the right panel → <strong>Start Debate</strong></div>
+    </div>`;
+}
+
+function selectPersona(id) {
+  currentPersona=id?PERSONAS.find(p=>p.id===id):null;
+  renderModePanel();
+  renderPersonaWelcome();
+  if(currentPersona) toast(`Persona: ${currentPersona.name}`,'ok');
+}
+</script>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// LIVE TRACE UI — reflects real SSE events, not simulated
+// ═══════════════════════════════════════════════════════════════
+let liveTraceEl = null;
+let pendingThinking = [];
+let pendingTools = [];
+
+function createLiveTrace(intent) {
+  const msgs=$('messages');
+  const div=document.createElement('div');
+  div.id='live-trace';
+  div.className='msg-row';
+  div.innerHTML=`
+    <div class="msg-avatar ai-av">🧠</div>
+    <div class="live-trace">
+      <div class="live-trace-header">
+        <span class="spin">⟳</span>
+        <span>Processing</span>
+        <span class="step-badge badge-intent">${intent.label}</span>
+      </div>
+      <div id="trace-steps">
+        <div class="live-step done" id="ts-intent">
+          <span class="step-icon">✓</span>
+          <span class="step-text">Intent: <strong>${intent.type}</strong> — ${intent.label}
+            <span class="step-badge badge-intent">${intent.maxRounds===0?'no tools':'max '+intent.maxRounds+' rounds'}</span>
+          </span>
+        </div>
+        <div class="live-step done" id="ts-prompt">
+          <span class="step-icon">✓</span>
+          <span class="step-text">System prompt: base + <strong>${intent.type.toLowerCase()}</strong> module loaded</span>
+        </div>
+        <div class="live-step active" id="ts-llm">
+          <span class="step-icon spin" style="font-size:11px">⟳</span>
+          <span class="step-text">Calling LLM...</span>
+        </div>
+      </div>
+    </div>`;
+  msgs.appendChild(div);
+  liveTraceEl=div;
+  scrollBottom();
+}
+
+function updateLiveStep(id, status, text) {
+  const el=$(id); if(!el) return;
+  const icons={done:'✓',active:'⟳',pending:'○',error:'✗'};
+  el.className='live-step '+status;
+  el.innerHTML=`<span class="step-icon ${status==='active'?'spin':''}" style="font-size:11px">${icons[status]||'○'}</span><span class="step-text">${text}</span>`;
+}
+
+function addLiveToolStep(toolName) {
+  const steps=$('trace-steps'); if(!steps) return;
+  const id='ts-tool-'+Date.now();
+  const div=document.createElement('div');
+  div.className='live-step active'; div.id=id;
+  div.innerHTML=`<span class="step-icon spin" style="font-size:11px">⟳</span><span class="step-text">🔧 ${toolName}<span class="step-badge badge-tool">tool</span></span>`;
+  steps.appendChild(div);
+  scrollBottom();
+  return id;
+}
+
+function addLiveThinkingStep(content) {
+  pendingThinking.push(content);
+  const steps=$('trace-steps'); if(!steps) return;
+  const id='ts-think-'+Date.now();
+  const div=document.createElement('div');
+  div.className='live-step active'; div.id=id;
+  div.innerHTML=`<span class="step-icon">💭</span><span class="step-text" style="font-style:italic;color:var(--text3)">${content.slice(0,80)}...</span>`;
+  steps.appendChild(div);
+  scrollBottom();
+}
+
+function removeLiveTrace() {
+  if(liveTraceEl) { liveTraceEl.remove(); liveTraceEl=null; }
+}
+
+// Collapsed thinking card — inserted before the AI bubble (mirrors ChatModeScreen)
+function insertThinkingCard(beforeEl) {
+  if(pendingThinking.length===0 && pendingTools.length===0) return;
+  const card=document.createElement('div');
+  card.className='msg-row';
+  const toolSummary=pendingTools.length>0?` | tools: ${pendingTools.join(', ')}`:'';
+  const summary=`> ${pendingThinking.length} thinking steps${toolSummary}`;
+  card.innerHTML=`
+    <div class="msg-avatar ai-av" style="opacity:.5">💭</div>
+    <div class="thinking-card" onclick="this.classList.toggle('open')">
+      <div class="thinking-card-header">
+        <span class="thinking-card-icon">▶</span>
+        <span class="thinking-card-summary">${summary}</span>
+        <span class="thinking-card-toggle">▼</span>
+      </div>
+      <div class="thinking-card-body">
+        ${pendingThinking.map(t=>`<div class="thinking-step think">💭 ${escHtml(t.slice(0,200))}</div>`).join('')}
+        ${pendingTools.map(t=>`<div class="thinking-step tool">🔧 ${escHtml(t)}</div>`).join('')}
+      </div>
+    </div>`;
+  if(beforeEl && beforeEl.parentNode)
+    beforeEl.parentNode.insertBefore(card, beforeEl);
+  else
+    $('messages').appendChild(card);
+  pendingThinking=[];
+  pendingTools=[];
+}
+</script>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// MESSAGE RENDERING
+// ═══════════════════════════════════════════════════════════════
+function addUserBubble(text) {
+  const msgs=$('messages');
+  const div=document.createElement('div');
+  div.className='msg-row user';
+  div.innerHTML=`
+    <div class="msg-avatar user-av">👤</div>
+    <div class="msg-content">
+      <div class="msg-bubble user-bubble">${escHtml(text)}</div>
+      <div class="msg-meta">${new Date().toLocaleTimeString()}</div>
+    </div>`;
+  msgs.appendChild(div);
+  scrollBottom();
+}
+
+function addAiBubble(text, meta={}) {
+  const msgs=$('messages');
+  const div=document.createElement('div');
+  div.className='msg-row';
+  const intentBadge=meta.intent?`<span class="step-badge badge-intent">${meta.intent}</span>`:'';
+  const agentBadge=meta.agent?`<span class="step-badge badge-agent">${meta.agent}</span>`:'';
+  div.innerHTML=`
+    <div class="msg-avatar ai-av">${meta.avatar||'🤖'}</div>
+    <div class="msg-content">
+      <div class="msg-bubble ai-bubble">${formatMarkdown(text)}</div>
+      <div class="msg-meta">${intentBadge}${agentBadge} ${new Date().toLocaleTimeString()} ${meta.tokens?`· ${meta.tokens} tokens`:''}</div>
+    </div>`;
+  msgs.appendChild(div);
+  scrollBottom();
+}
+
+function addStreamingBubble(avatar) {
+  const msgs=$('messages');
+  const div=document.createElement('div');
+  div.className='msg-row';
+  div.id='streaming-bubble-row';
+  div.innerHTML=`
+    <div class="msg-avatar ai-av">${avatar||'🤖'}</div>
+    <div class="msg-content">
+      <div class="msg-bubble ai-bubble" id="streaming-bubble"><span class="pulse">▋</span></div>
+      <div class="msg-meta" id="streaming-meta"></div>
+    </div>`;
+  msgs.appendChild(div);
+  scrollBottom();
+  return $('streaming-bubble');
+}
+
+function finalizeStreamingBubble(text, meta={}) {
+  const bubble=$('streaming-bubble');
+  if(bubble) bubble.innerHTML=formatMarkdown(text);
+  const metaEl=$('streaming-meta');
+  if(metaEl) {
+    const intentBadge=meta.intent?`<span class="step-badge badge-intent">${meta.intent}</span>`:'';
+    const agentBadge=meta.agent?`<span class="step-badge badge-agent">${meta.agent}</span>`:'';
+    metaEl.innerHTML=`${intentBadge}${agentBadge} ${new Date().toLocaleTimeString()} ${meta.tokens?`· ${meta.tokens} tokens`:''}`;
+  }
+}
+
+function addDebateBubbles(symbol, bull, bear, verdict) {
+  const msgs=$('messages');
+  const div=document.createElement('div');
+  div.innerHTML=`
+    <div class="debate-container">
+      <div class="debate-side debate-bull"><div class="debate-label">🐂 Bull Case</div>${formatMarkdown(bull)}</div>
+      <div class="debate-side debate-bear"><div class="debate-label">🐻 Bear Case</div>${formatMarkdown(bear)}</div>
+    </div>
+    <div class="debate-verdict">
+      <div class="verdict-label">⚖️ Neutral Verdict — ${escHtml(symbol)}</div>
+      ${formatMarkdown(verdict)}
+    </div>`;
+  msgs.appendChild(div);
+  scrollBottom();
+}
+</script>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// SEND MESSAGE — intent-first flow
+// ═══════════════════════════════════════════════════════════════
+async function sendMessage() {
+  if(isStreaming) return;
+  const input=$('input-box');
+  const text=input.value.trim();
+  if(!text) return;
+
+  input.value=''; autoResize(input);
+  isStreaming=true;
+  $('send-btn').disabled=true; $('send-btn').textContent='···';
+  $('stop-btn').style.display='inline-flex';
+
+  const welcome=$('messages').querySelector('.welcome');
+  if(welcome) welcome.remove();
+
+  addUserBubble(text);
+  pendingThinking=[]; pendingTools=[];
+
+  const showTrace=$('trace-toggle')?.checked!==false;
+  const useStream=$('stream-toggle')?.checked!==false;
+
+  if(currentMode==='persona' && currentPersona) {
+    await sendPersonaMessage(text, showTrace, useStream);
+  } else {
+    await sendIntentMessage(text, showTrace, useStream);
+  }
+
+  isStreaming=false;
+  $('send-btn').disabled=false; $('send-btn').textContent='Send ↑';
+  $('stop-btn').style.display='none';
+  abortController=null;
+}
+
+function stopStream() {
+  if(abortController) { abortController.abort(); }
+  isStreaming=false;
+  $('send-btn').disabled=false; $('send-btn').textContent='Send ↑';
+  $('stop-btn').style.display='none';
+  removeLiveTrace();
+  const bubble=$('streaming-bubble');
+  if(bubble) {
+    const acc=bubble.dataset.acc||'';
+    if(acc) bubble.innerHTML=formatMarkdown(acc)+'<span style="color:var(--text3);font-size:11px"> [stopped]</span>';
+  }
+}
+
+async function sendIntentMessage(text, showTrace, useStream) {
+  // ── Step 1: Classify intent (instant, client-side) ──
+  const intent = classifyIntent(text);
+  if (showTrace) createLiveTrace(intent);
+
+  try {
+    if (cfg.backend === 'fincept') {
+      // ── Fincept backend: mirrors ChatModeService::stream_message() ──
+      // Ensure session exists (mirrors ChatModeScreen::ensure_active_session)
+      if (!activeSessionId) {
+        activeSessionId = await createFinceptSession('New Conversation');
+      }
+      const streamMode = intent.maxRounds >= 8 ? 'deep' : 'lite';
+      await streamFinceptMessage(text, intent, showTrace, streamMode);
+    } else {
+      // ── Local fincept-api: type-in-data SSE protocol ──
+      const systemPrompt = buildSystemPrompt(intent.type, null);
+      const payload = {
+        query: text,
+        llm_config: llmConfig(),
+        options: { system_prompt: systemPrompt, max_tool_rounds: intent.maxRounds, intent: intent.type }
+      };
+      if (useStream) {
+        await streamLocalMessage(payload, intent, showTrace);
+      } else {
+        if (showTrace) updateLiveStep('ts-llm','active','Calling LLM (non-streaming)...');
+        const r = await fetch(apiUrl('/api/v1/agents/run'), {method:'POST',headers:apiHeaders(),body:JSON.stringify(payload)});
+        const d = await r.json();
+        removeLiveTrace();
+        addAiBubble(d.response||d.result||JSON.stringify(d), {intent:intent.label, agent:'Auto-route'});
+        updateAgentBadge(intent.label);
+      }
+    }
+  } catch(e) {
+    removeLiveTrace();
+    if (e.name !== 'AbortError') addAiBubble('❌ ' + e.message);
+  }
+}
+
+// ── Fincept backend SSE (named events — mirrors handle_sse_line in C++) ──────
+async function streamFinceptMessage(text, intent, showTrace, mode) {
+  abortController = new AbortController();
+
+  const body = {
+    message: text,
+    session_id: activeSessionId,
+    mode: mode,                    // "lite" | "deep"
+    auto_approve: false,
+    profile_id: cfg.profileId,
+    source: null
+  };
+
+  const res = await fetch(apiUrl('/chat/agent/stream'), {
+    method: 'POST',
+    headers: {...apiHeaders(), 'Accept': 'text/event-stream'},
+    body: JSON.stringify(body),
+    signal: abortController.signal
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let bubble = null;
+  let accumulated = '';
+  let currentEvent = '';
+  let stepTokens = 0;
+  let buffer = '';
+
+  while (true) {
+    const {done, value} = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, {stream: true});
+    const lines = buffer.split('\n');
+    buffer = lines.pop(); // keep incomplete line
+
+    for (const raw of lines) {
+      const line = raw.trim();
+
+      // Named SSE event field (mirrors sse_current_event_ in C++)
+      if (line.startsWith('event:')) {
+        currentEvent = line.slice(6).trim();
+        continue;
+      }
+
+      if (line.startsWith('data:')) {
+        let data = {};
+        try { data = JSON.parse(line.slice(5).trim()); } catch { continue; }
+
+        // ── Dispatch by event name (mirrors handle_sse_line) ──
+        if (currentEvent === 'session-meta') {
+          // Backend auto-titled the session
+          const newTitle = data.new_title || '';
+          if (newTitle) {
+            $('chat-title').textContent = newTitle;
+            updateSessionTitle(newTitle);
+          }
+
+        } else if (currentEvent === 'thinking') {
+          // Reasoning content — buffer for thinking card
+          addLiveThinkingStep(data.content || '');
+
+        } else if (currentEvent === 'step-start') {
+          // New reasoning step
+          if (showTrace) updateLiveStep('ts-llm','active',`Step ${data.stepNumber}...`);
+
+        } else if (currentEvent === 'step-finish') {
+          // Step done — accumulate tokens
+          stepTokens += (data.tokensUsed || 0);
+          if (showTrace) updateLiveStep('ts-llm','active',`Step done · ${stepTokens} tokens`);
+
+        } else if (currentEvent === 'tool-end') {
+          // Tool executed on backend
+          const toolName = data.tool || 'tool';
+          const dur = data.durationMs || 0;
+          pendingTools.push(`${toolName} (${dur}ms)`);
+          if (showTrace) addLiveToolStep(`${toolName} · ${dur}ms`);
+
+        } else if (currentEvent === 'text-delta') {
+          // Streaming text token
+          if (!bubble) {
+            removeLiveTrace();
+            // Insert thinking card BEFORE the bubble (mirrors insert_collapsed_thinking_card)
+            const placeholder = document.createElement('div');
+            $('messages').appendChild(placeholder);
+            insertThinkingCard(placeholder);
+            placeholder.remove();
+            bubble = addStreamingBubble(intent.icon || '🤖');
+            accumulated = '';
+          }
+          accumulated += (data.text || '');
+          bubble.innerHTML = formatMarkdown(accumulated) + '<span class="pulse">▋</span>';
+          bubble.dataset.acc = accumulated;
+          scrollBottom();
+
+        } else if (currentEvent === 'finish') {
+          // Stream complete
+          const total = data.totalTokens || stepTokens;
+          if (bubble) {
+            finalizeStreamingBubble(accumulated, {intent: intent.label, agent: mode === 'deep' ? 'Deep' : 'Lite', tokens: total});
+            updateAgentBadge(intent.label);
+          }
+          totalTokens += total;
+          if (totalTokens > 0) $('token-count').textContent = totalTokens + ' tokens';
+
+        } else if (currentEvent === 'heartbeat') {
+          // Keep-alive — no UI action needed
+
+        } else if (currentEvent === 'error') {
+          removeLiveTrace();
+          addAiBubble('❌ ' + (data.message || 'Stream error'));
+        }
+
+        if (line.length > 0) currentEvent = ''; // reset after data line
+      }
+    }
+  }
+  if (!bubble) removeLiveTrace();
+}
+
+// ── Local fincept-api SSE (type-in-data protocol) ────────────────────────────
+async function streamLocalMessage(payload, intent, showTrace) {
+  abortController = new AbortController();
+  const res = await fetch(apiUrl('/api/v1/agents/run/stream'), {
+    method: 'POST', headers: apiHeaders(),
+    body: JSON.stringify(payload),
+    signal: abortController.signal
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let bubble = null;
+  let accumulated = '';
+
+  while (true) {
+    const {done, value} = await reader.read();
+    if (done) break;
+    const lines = decoder.decode(value).split('\n');
+    for (const line of lines) {
+      if (!line.startsWith('data: ')) continue;
+      try {
+        const evt = JSON.parse(line.slice(6));
+        if (evt.type === 'thinking') {
+          addLiveThinkingStep(evt.content || '');
+        } else if (evt.type === 'tool') {
+          const toolName = evt.content || 'tool';
+          pendingTools.push(toolName);
+          if (showTrace) addLiveToolStep(toolName);
+        } else if (evt.type === 'token') {
+          if (!bubble) {
+            removeLiveTrace();
+            const placeholder = document.createElement('div');
+            $('messages').appendChild(placeholder);
+            insertThinkingCard(placeholder);
+            placeholder.remove();
+            bubble = addStreamingBubble(intent.icon || '🤖');
+            accumulated = '';
+          }
+          accumulated += evt.content;
+          bubble.innerHTML = formatMarkdown(accumulated) + '<span class="pulse">▋</span>';
+          bubble.dataset.acc = accumulated;
+          scrollBottom();
+        } else if (evt.type === 'done') {
+          if (bubble) {
+            finalizeStreamingBubble(accumulated, {intent: intent.label, agent: 'Auto-route'});
+            updateAgentBadge(intent.label);
+          }
+        } else if (evt.type === 'error') {
+          removeLiveTrace();
+          addAiBubble('❌ ' + evt.content);
+        }
+      } catch {}
+    }
+  }
+  if (!bubble) removeLiveTrace();
+}
+
+// ── Fincept session management (mirrors ChatModeScreen::on_new_session) ───────
+async function createFinceptSession(title) {
+  try {
+    const r = await fetch(apiUrl('/chat/sessions'), {
+      method: 'POST', headers: apiHeaders(),
+      body: JSON.stringify({title})
+    });
+    const d = await r.json();
+    const uuid = d?.data?.session?.session_uuid || null;
+    if (uuid) addSessionToSidebar(uuid, title);
+    return uuid;
+  } catch { return null; }
+}
+
+function addSessionToSidebar(uuid, title) {
+  const list = $('session-list');
+  // Mark all inactive
+  list.querySelectorAll('.session-item').forEach(el => el.classList.remove('active'));
+  const item = document.createElement('div');
+  item.className = 'session-item active';
+  item.dataset.uuid = uuid;
+  item.innerHTML = `<span class="session-icon">💬</span><span class="session-text">${escHtml(title)}</span>`;
+  item.onclick = () => switchSession(uuid, title, item);
+  list.insertBefore(item, list.firstChild);
+}
+
+function updateSessionTitle(title) {
+  $('chat-title').textContent = title;
+  const active = $('session-list').querySelector('.session-item.active');
+  if (active) active.querySelector('.session-text').textContent = title;
+}
+
+function switchSession(uuid, title, el) {
+  activeSessionId = uuid;
+  $('session-list').querySelectorAll('.session-item').forEach(i => i.classList.remove('active'));
+  el.classList.add('active');
+  $('chat-title').textContent = title;
+  $('messages').innerHTML = '';
+  renderWelcome(); // TODO: load history from server
+}
+</script>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// PERSONA MESSAGE
+// ═══════════════════════════════════════════════════════════════
+async function sendPersonaMessage(text, showTrace, useStream) {
+  const persona = currentPersona;
+  // Persona replaces system prompt entirely — no intent module, no tools
+  const intent = {type:'PERSONA', label:persona.name, icon:persona.avatar, maxRounds:0};
+
+  if (showTrace) {
+    createLiveTrace(intent);
+    updateLiveStep('ts-intent','done',`Persona: ${persona.avatar} ${persona.name}`);
+    updateLiveStep('ts-prompt','done',`System prompt: ${persona.name} instructions loaded`);
+  }
+
+  const bubble = addStreamingBubble(persona.avatar);
+  let accumulated = '';
+
+  try {
+    abortController = new AbortController();
+    let res;
+
+    if (cfg.backend === 'fincept') {
+      // Fincept backend: pass persona instructions as system_prompt override
+      if (!activeSessionId) activeSessionId = await createFinceptSession('New Conversation');
+      res = await fetch(apiUrl('/chat/agent/stream'), {
+        method: 'POST',
+        headers: {...apiHeaders(), 'Accept': 'text/event-stream'},
+        body: JSON.stringify({
+          message: text,
+          session_id: activeSessionId,
+          mode: 'lite',
+          auto_approve: false,
+          profile_id: cfg.profileId,
+          system_prompt_override: persona.instructions  // backend may support this
+        }),
+        signal: abortController.signal
+      });
+    } else {
+      res = await fetch(apiUrl('/api/v1/agents/run/stream'), {
+        method: 'POST', headers: apiHeaders(),
+        body: JSON.stringify({
+          query: text,
+          llm_config: llmConfig(),
+          options: {system_prompt: persona.instructions, max_tool_rounds: 0, intent: 'PERSONA'}
+        }),
+        signal: abortController.signal
+      });
+    }
+
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let currentEvent = '';
+
+    while (true) {
+      const {done, value} = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, {stream: true});
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+
+      for (const raw of lines) {
+        const line = raw.trim();
+        if (line.startsWith('event:')) { currentEvent = line.slice(6).trim(); continue; }
+        if (!line.startsWith('data:')) continue;
+        try {
+          const data = JSON.parse(line.slice(5).trim());
+          // Handle both protocols
+          const isToken = currentEvent === 'text-delta' || data.type === 'token';
+          const isDone  = currentEvent === 'finish'     || data.type === 'done';
+          const text_   = data.text || data.content || '';
+
+          if (isToken) {
+            if (liveTraceEl) removeLiveTrace();
+            accumulated += text_;
+            bubble.innerHTML = formatMarkdown(accumulated) + '<span class="pulse">▋</span>';
+            bubble.dataset.acc = accumulated;
+            scrollBottom();
+          } else if (isDone) {
+            finalizeStreamingBubble(accumulated, {agent: persona.name, avatar: persona.avatar});
+          }
+          if (line.length > 0) currentEvent = '';
+        } catch {}
+      }
+    }
+  } catch(e) {
+    removeLiveTrace();
+    if (e.name !== 'AbortError') bubble.innerHTML = '❌ ' + e.message;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BULL vs BEAR DEBATE — parallel calls
+// ═══════════════════════════════════════════════════════════════
+async function startDebate() {
+  const symbol = ($('debate-symbol')?.value || 'AAPL').toUpperCase().trim();
+  if (!symbol) { toast('Enter a symbol','err'); return; }
+
+  setMode('debate');
+  $('messages').innerHTML = '';
+  addUserBubble(`⚔️ Bull vs Bear Debate: ${symbol}`);
+
+  const loadDiv = document.createElement('div');
+  loadDiv.id = 'debate-loading';
+  loadDiv.innerHTML = `
+    <div style="padding:16px 0">
+      <div class="live-trace" style="max-width:480px">
+        <div class="live-trace-header"><span class="spin">⟳</span> Running parallel debate for ${escHtml(symbol)}...</div>
+        <div class="live-step active" id="dl-1"><span class="step-icon spin" style="font-size:11px">⟳</span><span class="step-text">🐂 Bull agent analyzing ${escHtml(symbol)}...</span></div>
+        <div class="live-step active" id="dl-2"><span class="step-icon spin" style="font-size:11px">⟳</span><span class="step-text">🐻 Bear agent analyzing ${escHtml(symbol)}... (parallel)</span></div>
+        <div class="live-step pending" id="dl-3"><span class="step-icon">○</span><span class="step-text">⚖️ Generating neutral verdict...</span></div>
+      </div>
+    </div>`;
+  $('messages').appendChild(loadDiv);
+  scrollBottom();
+
+  // Debate always uses local backend (non-streaming, parallel)
+  const debateHeaders = {'Content-Type':'application/json','X-API-Key':cfg.localKey};
+  const debateUrl = cfg.localUrl + '/api/v1/agents/run';
+  const analysisPrompt = buildSystemPrompt('ANALYSIS', null);
+
+  try {
+    const [bullR, bearR] = await Promise.all([
+      fetch(debateUrl, {method:'POST', headers:debateHeaders, body:JSON.stringify({
+        query: `Make the strongest possible BULL case for ${symbol} stock. Focus on: growth catalysts, competitive moat, valuation upside, and why bears are wrong. Be specific with numbers. Format as bullet points.`,
+        llm_config: llmConfig(),
+        options: {system_prompt: analysisPrompt, max_tool_rounds: 3}
+      })}).then(r=>r.json()),
+      fetch(debateUrl, {method:'POST', headers:debateHeaders, body:JSON.stringify({
+        query: `Make the strongest possible BEAR case for ${symbol} stock. Focus on: risks, overvaluation, competitive threats, and why bulls are wrong. Be specific with numbers. Format as bullet points.`,
+        llm_config: llmConfig(),
+        options: {system_prompt: analysisPrompt, max_tool_rounds: 3}
+      })}).then(r=>r.json())
+    ]);
+
+    updateDebateStep('dl-1','done','🐂 Bull case ready');
+    updateDebateStep('dl-2','done','🐻 Bear case ready');
+    updateDebateStep('dl-3','active','⚖️ Generating verdict...');
+
+    const verdictR = await fetch(debateUrl, {method:'POST', headers:debateHeaders, body:JSON.stringify({
+      query: `Given these arguments about ${symbol}:\nBULL: ${(bullR.response||'').slice(0,500)}\nBEAR: ${(bearR.response||'').slice(0,500)}\n\nProvide a neutral 3-sentence verdict: balance of evidence, key swing factor, what would change your view.`,
+      llm_config: llmConfig(),
+      options: {system_prompt: PROMPT_BASE, max_tool_rounds: 0}
+    })}).then(r=>r.json());
+
+    updateDebateStep('dl-3','done','⚖️ Verdict ready');
+    await sleep(200);
+    $('debate-loading')?.remove();
+    addDebateBubbles(symbol, bullR.response||bullR.result||'No bull case', bearR.response||bearR.result||'No bear case', verdictR.response||verdictR.result||'No verdict');
+    $('chat-title').textContent = `⚔️ ${symbol} Debate`;
+  } catch(e) {
+    $('debate-loading')?.remove();
+    addAiBubble('❌ Debate failed: ' + e.message);
+  }
+}
+
+function updateDebateStep(id,status,text) {
+  const el=$(id); if(!el) return;
+  const icons={done:'✓',active:'⟳',pending:'○'};
+  el.className='live-step '+status;
+  el.innerHTML=`<span class="step-icon ${status==='active'?'spin':''}" style="font-size:11px">${icons[status]}</span><span class="step-text">${text}</span>`;
+}
+</script>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════════
+function updateAgentBadge(label) {
+  const badge=$('agent-badge');
+  badge.style.display='flex';
+  $('agent-badge-text').textContent=label;
+}
+
+function scrollBottom() {
+  const msgs=$('messages');
+  requestAnimationFrame(()=>msgs.scrollTop=msgs.scrollHeight);
+}
+
+function autoResize(el) {
+  el.style.height='auto';
+  el.style.height=Math.min(el.scrollHeight,120)+'px';
+}
+
+function inputKeydown(e) {
+  if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage();}
+}
+
+function fillInput(text) {
+  $('input-box').value=text;
+  autoResize($('input-box'));
+  $('input-box').focus();
+}
+
+function newChat() {
+  $('messages').innerHTML='';
+  $('chat-title').textContent='New Conversation';
+  $('agent-badge').style.display='none';
+  $('token-count').textContent='';
+  totalTokens=0;
+  pendingThinking=[]; pendingTools=[];
+  if(currentMode==='chat') renderWelcome();
+  else if(currentMode==='persona') renderPersonaWelcome();
+  else renderDebateWelcome();
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ── Init ──────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  checkHealth();
+  renderWelcome();
+  renderModePanel();
+  $('input-box').addEventListener('input', function() { autoResize(this); });
+});
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function formatMarkdown(text) {
+  if(!text) return '';
+  return text
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g,'<em>$1</em>')
+    .replace(/`(.+?)`/g,'<code style="background:var(--bg3);padding:1px 5px;border-radius:3px;font-size:12px">$1</code>')
+    .replace(/^## (.+)$/gm,'<div style="font-weight:700;font-size:14px;margin:10px 0 4px;color:var(--amber)">$1</div>')
+    .replace(/^### (.+)$/gm,'<div style="font-weight:600;font-size:13px;margin:8px 0 3px">$1</div>')
+    .replace(/^- (.+)$/gm,'<div style="padding:2px 0 2px 12px;border-left:2px solid var(--border)">• $1</div>')
+    .replace(/\n\n/g,'<br><br>')
+    .replace(/\n/g,'<br>');
+}
+
+// ── Config modal ──────────────────────────────────────────────
+function toggleBackendFields(backend) {
+  $('local-fields').style.display   = backend === 'local'    ? '' : 'none';
+  $('fincept-fields').style.display = backend === 'fincept'  ? '' : 'none';
+}
+
+function showConfig() {
+  $('cfg-backend').value    = cfg.backend;
+  $('cfg-url').value        = cfg.localUrl;
+  $('cfg-key').value        = cfg.localKey;
+  $('cfg-model').value      = cfg.model;
+  $('cfg-llm-url').value    = cfg.llmUrl;
+  $('cfg-llm-key').value    = cfg.llmKey;
+  if ($('cfg-fincept-key'))   $('cfg-fincept-key').value   = cfg.finceptKey;
+  if ($('cfg-fincept-token')) $('cfg-fincept-token').value = cfg.finceptToken;
+  if ($('cfg-profile-id'))    $('cfg-profile-id').value    = cfg.profileId;
+  toggleBackendFields(cfg.backend);
+  $('config-modal').classList.add('show');
+}
+function closeConfig() { $('config-modal').classList.remove('show'); }
+async function saveConfig() {
+  cfg.backend      = $('cfg-backend').value;
+  cfg.localUrl     = $('cfg-url').value.replace(/\/$/,'');
+  cfg.localKey     = $('cfg-key').value;
+  cfg.model        = $('cfg-model').value;
+  cfg.llmUrl       = $('cfg-llm-url').value;
+  cfg.llmKey       = $('cfg-llm-key').value;
+  cfg.finceptKey   = $('cfg-fincept-key')?.value   || '';
+  cfg.finceptToken = $('cfg-fincept-token')?.value || '';
+  cfg.profileId    = parseInt($('cfg-profile-id')?.value || '1');
+  closeConfig();
+  await checkHealth();
+}
+
+function newChat() {
+  $('messages').innerHTML = '';
+  $('chat-title').textContent = 'New Conversation';
+  $('agent-badge').style.display = 'none';
+  $('token-count').textContent = '';
+  totalTokens = 0;
+  pendingThinking = []; pendingTools = [];
+  activeSessionId = null; // force new session on next send
+  if (currentMode === 'chat') renderWelcome();
+  else if (currentMode === 'persona') renderPersonaWelcome();
+  else renderDebateWelcome();
+}
+</script>
+</body>
+</html>

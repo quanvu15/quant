@@ -267,13 +267,14 @@ class ModelsRegistry:
             "default_model": None,
         },
 
-        # Fincept (Built-in custom endpoint)
-        "fincept": {
+        # Self-hosted OpenAI-compatible endpoint (replaces legacy "fincept" provider)
+        # Configure via env: SELF_HOSTED_LLM_URL and SELF_HOSTED_API_KEY
+        "self_hosted": {
             "class": "finagent_core.registries.fincept_model.FinceptChat",
-            "models": ["fincept-llm"],
-            "api_key_env": "FINCEPT_API_KEY",
-            "default_model": "fincept-llm",
-            "base_url": "https://api.fincept.in/research/llm",
+            "models": ["self-hosted-llm"],
+            "api_key_env": "SELF_HOSTED_API_KEY",
+            "default_model": "self-hosted-llm",
+            "base_url": None,  # Must be set via ANALYTICS_LLM_URL env var or explicit config
         },
     }
 
@@ -312,6 +313,7 @@ class ModelsRegistry:
             "gemini": "google",
             "claude": "anthropic",
             "gpt": "openai",
+            "fincept": "self_hosted",  # backward-compat: old "fincept" provider → self_hosted
         }
         provider_lower = _PROVIDER_ALIASES.get(provider_lower, provider_lower)
 

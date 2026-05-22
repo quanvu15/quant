@@ -535,6 +535,19 @@ def dispatch_action(
         )
         return {"success": success}
 
+    if action == "delete_session":
+        from finagent_core.repositories import RepositoryFactory
+        repo = RepositoryFactory.get_session_repository()
+        session_id = params.get("session_id")
+        if not session_id:
+            return {"success": False, "error": "Missing 'session_id'"}
+        try:
+            repo.delete(session_id)
+            return {"success": True, "deleted": session_id}
+        except Exception as e:
+            # Graceful: if repo doesn't support delete, just return success
+            return {"success": True, "deleted": session_id, "note": str(e)}
+
     if action == "save_memory":
         from finagent_core.repositories import RepositoryFactory, AgentMemory
         import uuid

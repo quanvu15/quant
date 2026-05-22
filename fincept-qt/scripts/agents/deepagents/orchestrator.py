@@ -1,19 +1,24 @@
 """
-orchestrator.py — Fallback for non-tool-calling LLMs (Fincept API, Ollama).
+orchestrator.py — Fallback for non-tool-calling LLMs (self-hosted / Ollama).
 
 Single responsibility:
   - Execute multi-step agent workflows via prompt-loop when the configured LLM
-    does not support LangChain tool calling (e.g. Fincept hosted LLM, Ollama)
+    does not support LangChain tool calling (e.g. self-hosted LLM, Ollama)
   - Produce the same output format as the deepagents library path so cli.py
     routing is transparent to the caller
 
 Does NOT use deepagents library — pure HTTP + prompt engineering.
+
+LLM endpoint is read from environment variables:
+  ANALYTICS_LLM_URL        — sync endpoint  (default: http://localhost:8000/research/llm)
+  ANALYTICS_LLM_ASYNC_URL  — async endpoint (default: http://localhost:8000/research/llm/async)
 """
 
 from __future__ import annotations
 
 import json
 import logging
+import os
 import time
 from typing import Any
 
@@ -21,9 +26,9 @@ import requests
 
 logger = logging.getLogger(__name__)
 
-# Fincept hosted LLM endpoint
-_FINCEPT_LLM_URL   = "https://api.fincept.in/research/llm"
-_FINCEPT_LLM_ASYNC = "https://api.fincept.in/research/llm/async"
+# Self-hosted LLM endpoint — read from env, fall back to local analytics service
+_FINCEPT_LLM_URL   = os.environ.get("ANALYTICS_LLM_URL",       "http://localhost:8000/research/llm")
+_FINCEPT_LLM_ASYNC = os.environ.get("ANALYTICS_LLM_ASYNC_URL", "http://localhost:8000/research/llm/async")
 _DEFAULT_TIMEOUT   = 120  # seconds
 
 # System prompts for each specialist role
@@ -319,7 +324,7 @@ class FinceptOrchestrator:
         return self._call_llm(prompt, max_tokens=3000)
 
     def _call_llm(self, prompt: str, max_tokens: int = 1000) -> str:
-        """Call the Fincept LLM endpoint with retry on async failure."""
+        """Call the self-hosted LLM endpoint with retry on async failure."""
         payload = {
             "prompt":     prompt,
             "max_tokens": max_tokens,

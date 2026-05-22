@@ -1,0 +1,271 @@
+version: "3.9"
+
+# ── Analytics Microservice — Docker Compose ───────────────────────────────────
+# Development: docker-compose up -d
+# Production:  docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# Services:
+#   analytics-api      — FastAPI application (port 8000)
+#   postgres           — PostgreSQL 16 (port 5432, shared with QuantDinger if needed)
+#   redis              — Redis 7 (port 6379)
+#   prometheus         — Prometheus metrics (port 9090, profile: monitoring)
+#   grafana            — Grafana dashboard (port 3000, profile: monitoring)
+
+services:
+  # ── Analytics API ─────────────────────────────────────────────────────────────
+  analytics-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    container_name: analytics-api
+    ports:
+      - "${PORT:-8000}:8000"
+    environment:
+      SERVICE_NAME: analytics
+      ENV: ${ENV:-development}
+      HOST: "0.0.0.0"
+      PORT: "8000"
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-quantdinger}
+      DB_SCHEMA: ${DB_SCHEMA:-analytics}
+      REDIS_URL: redis://redis:6379/0
+      REDIS_KEY_PREFIX: ${REDIS_KEY_PREFIX:-analytics:}
+      REDIS_MAX_CONNECTIONS: ${REDIS_MAX_CONNECTIONS:-20}
+      SCRIPTS_DIR: /app/scripts
+      LOG_FORMAT: ${LOG_FORMAT:-console}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-change-me-in-production}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      JWT_EXPIRE_MINUTES: ${JWT_EXPIRE_MINUTES:-1440}
+      QUANTDINGER_JWT_SECRET: ${QUANTDINGER_JWT_SECRET:-}
+      QUANTDINGER_JWT_ALGORITHM: ${QUANTDINGER_JWT_ALGORITHM:-HS256}
+      RATE_LIMIT_FREE: ${RATE_LIMIT_FREE:-60}
+      RATE_LIMIT_PAID: ${RATE_LIMIT_PAID:-600}
+      LLM_BASE_URL: ${LLM_BASE_URL:-}
+      LLM_MODEL: ${LLM_MODEL:-}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      FINNHUB_API_KEY: ${FINNHUB_API_KEY:-}
+      POLYGON_API_KEY: ${POLYGON_API_KEY:-}
+      ALPHA_VANTAGE_API_KEY: ${ALPHA_VANTAGE_API_KEY:-}
+      FRED_API_KEY: ${FRED_API_KEY:-}
+      AGENT_RUN_TIMEOUT: ${AGENT_RUN_TIMEOUT:-120}
+      AGENT_PLAN_TIMEOUT: ${AGENT_PLAN_TIMEOUT:-300}
+      MAX_CONCURRENT_AGENT_RUNS: ${MAX_CONCURRENT_AGENT_RUNS:-10}
+      MAX_CONCURRENT_PROCESSES: ${MAX_CONCURRENT_PROCESSES:-5}
+      DEFAULT_TIMEOUT: ${DEFAULT_TIMEOUT:-60}
+      NEWS_FETCH_INTERVAL: ${NEWS_FETCH_INTERVAL:-30}
+      NEWS_SOURCE_ERROR_THRESHOLD: ${NEWS_SOURCE_ERROR_THRESHOLD:-5}
+      NEWS_FETCH_TIMEOUT: ${NEWS_FETCH_TIMEOUT:-10}
+      CORS_ORIGINS: ${CORS_ORIGINS:-["*"]}
+    env_file:
+      - .env
+    volumes:
+      # Mount scripts directory from fincept-qt (read-only)
+      - ../fincept-qt/scripts:/app/scripts:ro
+      # Persistent backup storage (pg_dump output)
+      - analytics_backups:/backups
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+    networks:
+      - analytics-net
+
+  # ── News Fetcher Worker ─────────────────────────────────────────────────────
+  analytics-news-fetcher:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    container_name: analytics-news-fetcher
+    command: ["python", "-m", "workers.news_fetcher"]
+    environment:
+      SERVICE_NAME: analytics-news-fetcher
+      ENV: ${ENV:-development}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-quantdinger}
+      DB_SCHEMA: ${DB_SCHEMA:-analytics}
+      REDIS_URL: redis://redis:6379/0
+      REDIS_KEY_PREFIX: ${REDIS_KEY_PREFIX:-analytics:}
+      NEWS_FETCH_INTERVAL: ${NEWS_FETCH_INTERVAL:-30}
+      NEWS_SOURCE_ERROR_THRESHOLD: ${NEWS_SOURCE_ERROR_THRESHOLD:-5}
+      NEWS_FETCH_TIMEOUT: ${NEWS_FETCH_TIMEOUT:-10}
+      LOG_FORMAT: ${LOG_FORMAT:-console}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - analytics-net
+
+  # ── News NLP Worker ──────────────────────────────────────────────────────────
+  analytics-news-nlp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    container_name: analytics-news-nlp
+    command: ["python", "-m", "workers.news_nlp"]
+    environment:
+      SERVICE_NAME: analytics-news-nlp
+      ENV: ${ENV:-development}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-quantdinger}
+      DB_SCHEMA: ${DB_SCHEMA:-analytics}
+      REDIS_URL: redis://redis:6379/0
+      REDIS_KEY_PREFIX: ${REDIS_KEY_PREFIX:-analytics:}
+      NEWS_SENTIMENT_MODEL: ${NEWS_SENTIMENT_MODEL:-ProsusAI/finbert}
+      NEWS_NER_MODEL: ${NEWS_NER_MODEL:-en_core_web_sm}
+      LOG_FORMAT: ${LOG_FORMAT:-console}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - analytics-net
+
+  # ── PostgreSQL ────────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: analytics-postgres
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-quantdinger}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-quantdinger}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - analytics-net
+
+  # ── Redis ────────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7.4-alpine
+    container_name: analytics-redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    command: >
+      redis-server
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+      --save 60 1
+      --loglevel warning
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - analytics-net
+
+  # ── Prometheus (optional monitoring) ─────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    container_name: analytics-prometheus
+    profiles: ["monitoring"]
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./deploy/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=15d"
+      - "--web.enable-lifecycle"
+    restart: unless-stopped
+    networks:
+      - analytics-net
+
+  # ── Backup / Cron container (optional) ──────────────────────────────────────
+  # Runs pg_dump daily at 02:00 and rotates backups older than 30 days.
+  # Start with: docker-compose --profile backup up -d analytics-backup
+  analytics-backup:
+    image: postgres:16-alpine
+    container_name: analytics-backup
+    profiles: ["backup"]
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-quantdinger}
+      BACKUP_DIR: /backups
+      BACKUP_RETAIN_DAYS: ${BACKUP_RETAIN_DAYS:-30}
+    env_file:
+      - .env
+    volumes:
+      - ./scripts:/app/scripts:ro
+      - analytics_backups:/backups
+    # Install bash + cron, then register the daily 2am job
+    entrypoint: >
+      sh -c '
+        apk add --no-cache bash > /dev/null 2>&1 &&
+        echo "0 2 * * * DATABASE_URL=$$DATABASE_URL BACKUP_DIR=$$BACKUP_DIR BACKUP_RETAIN_DAYS=$$BACKUP_RETAIN_DAYS /app/scripts/backup.sh >> /var/log/analytics-backup.log 2>&1" | crontab - &&
+        echo "analytics-backup cron registered (daily 02:00)" &&
+        crond -f -l 2
+      '
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - analytics-net
+
+  # ── Grafana (optional dashboard) ─────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:11.1.0
+    container_name: analytics-grafana
+    profiles: ["monitoring"]
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./deploy/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./deploy/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+    networks:
+      - analytics-net
+
+volumes:
+  postgres_data:
+  redis_data:
+  prometheus_data:
+  grafana_data:
+  analytics_backups:
+
+networks:
+  analytics-net:
+    driver: bridge

@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fincept Terminal — API Demo</title>
+<style>
+  :root {
+    --bg: #0d1117; --bg2: #161b22; --bg3: #21262d;
+    --border: #30363d; --text: #e6edf3; --text2: #8b949e;
+    --green: #3fb950; --red: #f85149; --blue: #58a6ff;
+    --yellow: #d29922; --purple: #bc8cff; --orange: #ffa657;
+    --accent: #1f6feb; --accent2: #388bfd;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; font-size: 14px; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+  /* ── Header ── */
+  .header { background: var(--bg2); border-bottom: 1px solid var(--border); padding: 0 16px; height: 48px; display: flex; align-items: center; gap: 16px; flex-shrink: 0; }
+  .logo { font-weight: 700; font-size: 16px; color: var(--blue); letter-spacing: -0.5px; }
+  .logo span { color: var(--text2); font-weight: 400; }
+  .api-status { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text2); margin-left: auto; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text2); }
+  .dot.ok { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .dot.err { background: var(--red); }
+
+  /* ── Nav Tabs ── */
+  .nav { background: var(--bg2); border-bottom: 1px solid var(--border); display: flex; padding: 0 16px; flex-shrink: 0; }
+  .nav-tab { padding: 10px 18px; cursor: pointer; color: var(--text2); border-bottom: 2px solid transparent; font-size: 13px; font-weight: 500; transition: all .15s; display: flex; align-items: center; gap: 6px; }
+  .nav-tab:hover { color: var(--text); }
+  .nav-tab.active { color: var(--blue); border-bottom-color: var(--blue); }
+  .nav-tab .icon { font-size: 15px; }
+
+  /* ── Layout ── */
+  .main { flex: 1; overflow: hidden; display: flex; }
+  .panel { display: none; flex: 1; overflow: hidden; }
+  .panel.active { display: flex; }
+
+  /* ── Config Bar ── */
+  .config-bar { background: var(--bg3); border-bottom: 1px solid var(--border); padding: 8px 16px; display: flex; align-items: center; gap: 10px; flex-shrink: 0; flex-wrap: wrap; }
+  .config-bar label { font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: .5px; }
+  .config-bar input, .config-bar select { background: var(--bg2); border: 1px solid var(--border); color: var(--text); padding: 4px 8px; border-radius: 6px; font-size: 12px; outline: none; }
+  .config-bar input:focus, .config-bar select:focus { border-color: var(--accent2); }
+  .config-bar input { width: 220px; }
+
+  /* ── Buttons ── */
+  .btn { padding: 6px 14px; border-radius: 6px; border: none; cursor: pointer; font-size: 13px; font-weight: 500; transition: all .15s; display: inline-flex; align-items: center; gap: 6px; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: var(--accent2); }
+  .btn-secondary { background: var(--bg3); color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover { background: var(--bg2); border-color: var(--text2); }
+  .btn-danger { background: #3d1a1a; color: var(--red); border: 1px solid #5a2020; }
+  .btn-danger:hover { background: #5a2020; }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .btn-sm { padding: 3px 10px; font-size: 12px; }
+
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* ── Tag / Badge ── */
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+  .badge-green { background: #1a3a1a; color: var(--green); }
+  .badge-red { background: #3a1a1a; color: var(--red); }
+  .badge-blue { background: #1a2a3a; color: var(--blue); }
+  .badge-yellow { background: #3a2a1a; color: var(--yellow); }
+  .badge-purple { background: #2a1a3a; color: var(--purple); }
+
+  /* ── Spinner ── */
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spinner { width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--blue); border-radius: 50%; animation: spin .6s linear infinite; display: inline-block; }
+
+  /* ── Toast ── */
+  #toast { position: fixed; bottom: 20px; right: 20px; background: var(--bg3); border: 1px solid var(--border); padding: 10px 16px; border-radius: 8px; font-size: 13px; z-index: 9999; opacity: 0; transition: opacity .3s; pointer-events: none; max-width: 320px; }
+  #toast.show { opacity: 1; }
+  #toast.err { border-color: var(--red); color: var(--red); }
+  #toast.ok { border-color: var(--green); color: var(--green); }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="logo">⚡ Fincept <span>Terminal API Demo</span></div>
+  <div style="display:flex;gap:8px;align-items:center;margin-left:auto">
+    <div class="api-status"><div class="dot" id="status-dot"></div><span id="status-text">Checking...</span></div>
+    <span style="color:var(--border)">|</span>
+    <label style="font-size:12px;color:var(--text2)">API:</label>
+    <input id="api-base" value="http://localhost:8081" style="width:180px;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:3px 8px;border-radius:5px;font-size:12px;outline:none">
+    <label style="font-size:12px;color:var(--text2)">Key:</label>
+    <input id="api-key" value="fincept_admin_dev_key_local" style="width:200px;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:3px 8px;border-radius:5px;font-size:12px;outline:none">
+    <button class="btn btn-secondary btn-sm" onclick="checkHealth()">🔄 Ping</button>
+  </div>
+</div>
+
+<!-- NAV TABS -->
+<div class="nav">
+  <div class="nav-tab active" onclick="switchTab('chat')" id="tab-chat"><span class="icon">🤖</span> AI Chat Terminal</div>
+  <div class="nav-tab" onclick="switchTab('intel')" id="tab-intel"><span class="icon">🌍</span> Global Intelligence</div>
+  <div class="nav-tab" onclick="switchTab('econ')" id="tab-econ"><span class="icon">📊</span> Economic Research</div>
+</div>
+
+<div class="main">
+
+<!-- ═══════════════════════════════════════════════════════════
+     PANEL 1 — AI CHAT TERMINAL
+═══════════════════════════════════════════════════════════ -->
+<div class="panel active" id="panel-chat" style="flex-direction:column">
+  <div class="config-bar">
+    <label>Agent</label>
+    <select id="chat-agent" style="width:200px">
+      <option value="">— Auto (any agent) —</option>
+    </select>
+    <label>Model</label>
+    <input id="chat-model" value="gpt-5.4-mini" style="width:140px">
+    <label>Base URL</label>
+    <input id="chat-baseurl" value="https://api.chainhub.tech/v1" style="width:240px">
+    <label>LLM Key</label>
+    <input id="chat-llmkey" type="password" value="sk-LTbtvEuOTtYRfdbUCdkEoDTHhvDfjYjpNdECqeFEywwi6bMn" style="width:200px">
+    <button class="btn btn-secondary btn-sm" onclick="loadAgents()">🔄 Load Agents</button>
+    <button class="btn btn-danger btn-sm" onclick="clearChat()">🗑 Clear</button>
+    <span id="chat-agent-count" style="font-size:11px;color:var(--text2)"></span>
+  </div>
+
+  <div style="flex:1;display:flex;overflow:hidden">
+    <!-- Sidebar: Agent list -->
+    <div style="width:220px;border-right:1px solid var(--border);overflow-y:auto;flex-shrink:0;background:var(--bg2)">
+      <div style="padding:10px 12px;font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border)">Agents</div>
+      <div id="agent-list" style="padding:6px"></div>
+    </div>
+
+    <!-- Chat area -->
+    <div style="flex:1;display:flex;flex-direction:column;overflow:hidden">
+      <div id="chat-messages" style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px"></div>
+
+      <!-- Input -->
+      <div style="border-top:1px solid var(--border);padding:12px 16px;background:var(--bg2);display:flex;gap:10px;align-items:flex-end">
+        <textarea id="chat-input" placeholder="Ask anything... (Shift+Enter for newline, Enter to send)"
+          style="flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:8px;resize:none;font-size:13px;font-family:inherit;outline:none;min-height:44px;max-height:120px;line-height:1.5"
+          rows="1" onkeydown="chatKeydown(event)"></textarea>
+        <button class="btn btn-primary" id="chat-send-btn" onclick="sendChat()" style="height:44px;padding:0 18px">
+          <span id="chat-send-label">Send ▶</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Right: Quick actions -->
+    <div style="width:200px;border-left:1px solid var(--border);overflow-y:auto;flex-shrink:0;background:var(--bg2)">
+      <div style="padding:10px 12px;font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border)">Quick Analysis</div>
+      <div style="padding:8px;display:flex;flex-direction:column;gap:6px">
+        <input id="quick-symbol" placeholder="Symbol (e.g. AAPL)" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:12px;outline:none;width:100%">
+        <button class="btn btn-secondary btn-sm" style="width:100%;justify-content:center" onclick="quickAnalyze('stock')">📈 Stock Analysis</button>
+        <button class="btn btn-secondary btn-sm" style="width:100%;justify-content:center" onclick="quickAnalyze('earnings')">💰 Earnings Brief</button>
+        <button class="btn btn-secondary btn-sm" style="width:100%;justify-content:center" onclick="quickAnalyze('macro')">🌐 Macro Scan</button>
+        <button class="btn btn-secondary btn-sm" style="width:100%;justify-content:center" onclick="quickAnalyze('sector')">🏭 Sector Rotation</button>
+        <div style="border-top:1px solid var(--border);margin:4px 0"></div>
+        <div style="font-size:11px;color:var(--text2);padding:2px 0">Streaming mode</div>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer">
+          <input type="checkbox" id="stream-mode" checked style="accent-color:var(--blue)"> SSE Stream
+        </label>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     PANEL 2 — GLOBAL INTELLIGENCE
+═══════════════════════════════════════════════════════════ -->
+<div class="panel" id="panel-intel" style="flex-direction:column">
+  <div class="config-bar">
+    <label>View</label>
+    <select id="intel-view" onchange="switchIntelView(this.value)" style="width:180px">
+      <option value="geopolitics">🔴 Geopolitics (ACLED)</option>
+      <option value="maritime">🚢 Maritime Vessels</option>
+      <option value="calendar">📅 Economic Calendar</option>
+      <option value="central-banks">🏦 Central Banks</option>
+    </select>
+    <div id="intel-controls" style="display:flex;gap:10px;align-items:center"></div>
+    <button class="btn btn-primary btn-sm" onclick="loadIntelData()" style="margin-left:auto">🔄 Load Data</button>
+  </div>
+
+  <div style="flex:1;display:flex;overflow:hidden">
+    <!-- Left: data table -->
+    <div style="flex:1;overflow:auto;padding:16px">
+      <div id="intel-content">
+        <div style="color:var(--text2);text-align:center;padding:60px 0">Select a view and click Load Data</div>
+      </div>
+    </div>
+
+    <!-- Right: detail panel -->
+    <div style="width:320px;border-left:1px solid var(--border);overflow-y:auto;background:var(--bg2);flex-shrink:0">
+      <div style="padding:10px 12px;font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border)">Detail</div>
+      <div id="intel-detail" style="padding:12px;font-size:13px;color:var(--text2)">Click a row to see details</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     PANEL 3 — ECONOMIC RESEARCH
+═══════════════════════════════════════════════════════════ -->
+<div class="panel" id="panel-econ" style="flex-direction:column">
+  <div class="config-bar">
+    <label>Source</label>
+    <select id="econ-source" onchange="switchEconSource(this.value)" style="width:160px">
+      <option value="fred">📈 FRED (US)</option>
+      <option value="worldbank">🌍 World Bank</option>
+      <option value="central-bank">🏦 Central Banks</option>
+    </select>
+    <div id="econ-controls" style="display:flex;gap:10px;align-items:center">
+      <label>Series ID</label>
+      <input id="fred-series" value="CPIAUCSL" style="width:130px" placeholder="e.g. GDP, UNRATE">
+      <label>Start</label>
+      <input id="fred-start" value="2020-01-01" style="width:110px">
+    </div>
+    <button class="btn btn-primary btn-sm" onclick="loadEconData()" style="margin-left:auto">🔄 Fetch</button>
+  </div>
+
+  <!-- FRED search bar -->
+  <div style="background:var(--bg3);border-bottom:1px solid var(--border);padding:8px 16px;display:flex;gap:10px;align-items:center">
+    <span style="font-size:12px;color:var(--text2)">🔍 Search FRED:</span>
+    <input id="fred-search-input" placeholder="inflation, unemployment, GDP..." style="flex:1;max-width:400px;background:var(--bg2);border:1px solid var(--border);color:var(--text);padding:5px 10px;border-radius:6px;font-size:12px;outline:none">
+    <button class="btn btn-secondary btn-sm" onclick="searchFred()">Search</button>
+    <div id="fred-search-results" style="display:flex;gap:6px;flex-wrap:wrap;flex:1"></div>
+  </div>
+
+  <div style="flex:1;display:flex;overflow:hidden">
+    <!-- Chart area -->
+    <div style="flex:1;overflow:auto;padding:16px;display:flex;flex-direction:column;gap:16px">
+      <div id="econ-meta" style="display:none;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px 16px"></div>
+      <div id="econ-chart-container" style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:16px;min-height:300px;display:flex;align-items:center;justify-content:center">
+        <span style="color:var(--text2)">Fetch a series to see the chart</span>
+      </div>
+      <div id="econ-table-container" style="display:none"></div>
+    </div>
+
+    <!-- Right: popular series -->
+    <div style="width:220px;border-left:1px solid var(--border);overflow-y:auto;background:var(--bg2);flex-shrink:0">
+      <div style="padding:10px 12px;font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border)">Popular Series</div>
+      <div style="padding:8px;display:flex;flex-direction:column;gap:4px" id="popular-series"></div>
+    </div>
+  </div>
+</div>
+
+</div><!-- end .main -->
+<div id="toast"></div>
+
+<script>
+// ── Helpers ──────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const API = () => $('api-base').value.replace(/\/$/, '');
+const KEY = () => $('api-key').value;
+const headers = () => ({ 'Content-Type': 'application/json', 'X-API-Key': KEY() });
+
+function toast(msg, type = '') {
+  const t = $('toast');
+  t.textContent = msg; t.className = 'show ' + type;
+  setTimeout(() => t.className = '', 3000);
+}
+
+async function apiFetch(path, opts = {}) {
+  const res = await fetch(API() + path, { headers: headers(), ...opts });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err?.error?.message || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+function switchTab(name) {
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  $('tab-' + name).classList.add('active');
+  $('panel-' + name).classList.add('active');
+}
+
+// ── Health check ─────────────────────────────────────────────
+async function checkHealth() {
+  try {
+    const r = await fetch(API() + '/health');
+    const d = await r.json();
+    $('status-dot').className = 'dot ok';
+    $('status-text').textContent = `API v${d.version} · Redis ${d.redis}`;
+    toast('API connected ✓', 'ok');
+  } catch(e) {
+    $('status-dot').className = 'dot err';
+    $('status-text').textContent = 'Offline';
+    toast('Cannot reach API: ' + e.message, 'err');
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// PANEL 1 — AI CHAT TERMINAL
+// ══════════════════════════════════════════════════════════════
+let chatAbort = null;
+
+async function loadAgents() {
+  try {
+    const r = await apiFetch('/api/v1/agents/');
+    const agents = r.agents || [];
+    $('chat-agent-count').textContent = `${agents.length} agents`;
+
+    // Populate dropdown
+    const sel = $('chat-agent');
+    sel.innerHTML = '<option value="">— Auto (any agent) —</option>';
+    agents.forEach(a => {
+      const opt = document.createElement('option');
+      opt.value = a.id || a.agent_id || a.name;
+      opt.textContent = a.name || a.id;
+      sel.appendChild(opt);
+    });
+
+    // Populate sidebar
+    const list = $('agent-list');
+    list.innerHTML = '';
+    const byCategory = {};
+    agents.forEach(a => {
+      const cat = a.category || 'General';
+      if (!byCategory[cat]) byCategory[cat] = [];
+      byCategory[cat].push(a);
+    });
+    Object.entries(byCategory).forEach(([cat, items]) => {
+      const catEl = document.createElement('div');
+      catEl.style.cssText = 'font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;padding:8px 6px 4px;';
+      catEl.textContent = cat;
+      list.appendChild(catEl);
+      items.forEach(a => {
+        const el = document.createElement('div');
+        el.style.cssText = 'padding:5px 8px;border-radius:5px;cursor:pointer;font-size:12px;color:var(--text);transition:background .1s;';
+        el.textContent = a.name || a.id;
+        el.title = a.description || '';
+        el.onmouseenter = () => el.style.background = 'var(--bg3)';
+        el.onmouseleave = () => el.style.background = '';
+        el.onclick = () => { $('chat-agent').value = a.id || a.agent_id || a.name; };
+        list.appendChild(el);
+      });
+    });
+    toast(`Loaded ${agents.length} agents`, 'ok');
+  } catch(e) { toast('Load agents failed: ' + e.message, 'err'); }
+}
+
+function chatKeydown(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); }
+}
+
+function addMessage(role, content, type = '') {
+  const msgs = $('chat-messages');
+  const div = document.createElement('div');
+  div.style.cssText = `display:flex;gap:10px;align-items:flex-start;${role==='user'?'flex-direction:row-reverse':''}`;
+
+  const avatar = document.createElement('div');
+  avatar.style.cssText = `width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;background:${role==='user'?'var(--accent)':'var(--bg3)'};border:1px solid var(--border)`;
+  avatar.textContent = role === 'user' ? '👤' : '🤖';
+
+  const bubble = document.createElement('div');
+  bubble.style.cssText = `max-width:75%;padding:10px 14px;border-radius:12px;font-size:13px;line-height:1.6;white-space:pre-wrap;word-break:break-word;background:${role==='user'?'var(--accent)':'var(--bg2)'};border:1px solid ${role==='user'?'transparent':'var(--border)'};`;
+
+  if (type === 'thinking') {
+    bubble.style.background = 'var(--bg3)';
+    bubble.style.color = 'var(--yellow)';
+    bubble.style.fontStyle = 'italic';
+    bubble.style.fontSize = '12px';
+  } else if (type === 'tool') {
+    bubble.style.background = '#1a2a1a';
+    bubble.style.color = 'var(--green)';
+    bubble.style.fontFamily = 'monospace';
+    bubble.style.fontSize = '12px';
+  } else if (type === 'error') {
+    bubble.style.background = '#3a1a1a';
+    bubble.style.color = 'var(--red)';
+  }
+
+  bubble.textContent = content;
+  div.appendChild(avatar);
+  div.appendChild(bubble);
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+  return bubble;
+}
+
+async function sendChat() {
+  const input = $('chat-input');
+  const query = input.value.trim();
+  if (!query) return;
+
+  input.value = '';
+  input.style.height = 'auto';
+  addMessage('user', query);
+
+  const btn = $('chat-send-btn');
+  btn.disabled = true;
+  $('chat-send-label').innerHTML = '<span class="spinner"></span>';
+
+  const llm_config = {
+    model: $('chat-model').value,
+    api_key: $('chat-llmkey').value,
+    base_url: $('chat-baseurl').value
+  };
+  const agent_id = $('chat-agent').value || undefined;
+  const useStream = $('stream-mode').checked;
+
+  try {
+    if (useStream) {
+      await streamChat(query, agent_id, llm_config);
+    } else {
+      const r = await apiFetch('/api/v1/agents/run', {
+        method: 'POST',
+        body: JSON.stringify({ query, agent_id, llm_config })
+      });
+      addMessage('assistant', r.response || r.result || JSON.stringify(r, null, 2));
+    }
+  } catch(e) {
+    addMessage('assistant', '❌ ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    $('chat-send-label').textContent = 'Send ▶';
+  }
+}
+
+async function streamChat(query, agent_id, llm_config) {
+  const res = await fetch(API() + '/api/v1/agents/run/stream', {
+    method: 'POST',
+    headers: headers(),
+    body: JSON.stringify({ query, agent_id, llm_config })
+  });
+
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let tokenBubble = null;
+  let tokenText = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    const chunk = decoder.decode(value);
+    const lines = chunk.split('\n');
+    for (const line of lines) {
+      if (!line.startsWith('data: ')) continue;
+      try {
+        const evt = JSON.parse(line.slice(6));
+        if (evt.type === 'thinking') {
+          addMessage('assistant', '💭 ' + evt.content, 'thinking');
+        } else if (evt.type === 'tool') {
+          addMessage('assistant', '🔧 ' + evt.content, 'tool');
+        } else if (evt.type === 'token') {
+          if (!tokenBubble) {
+            tokenBubble = addMessage('assistant', '');
+            tokenText = '';
+          }
+          tokenText += evt.content;
+          tokenBubble.textContent = tokenText;
+          $('chat-messages').scrollTop = $('chat-messages').scrollHeight;
+        } else if (evt.type === 'done') {
+          tokenBubble = null; tokenText = '';
+        } else if (evt.type === 'error') {
+          addMessage('assistant', '❌ ' + evt.content, 'error');
+        }
+      } catch {}
+    }
+  }
+}
+
+async function quickAnalyze(type) {
+  const symbol = $('quick-symbol').value.trim().toUpperCase() || 'AAPL';
+  const llm_config = {
+    model: $('chat-model').value,
+    api_key: $('chat-llmkey').value,
+    base_url: $('chat-baseurl').value
+  };
+
+  const endpoints = {
+    stock: ['/api/v1/agents/analyze/stock', { symbol, llm_config }],
+    earnings: ['/api/v1/agents/analyze/earnings', { symbol, llm_config }],
+    macro: ['/api/v1/agents/analyze/macro', { llm_config }],
+    sector: ['/api/v1/agents/analyze/sector-rotation', { llm_config }]
+  };
+
+  const labels = { stock: `📈 Stock Analysis: ${symbol}`, earnings: `💰 Earnings: ${symbol}`, macro: '🌐 Macro Scan', sector: '🏭 Sector Rotation' };
+  addMessage('user', labels[type]);
+
+  const btn = $('chat-send-btn');
+  btn.disabled = true;
+  $('chat-send-label').innerHTML = '<span class="spinner"></span>';
+
+  try {
+    const [path, body] = endpoints[type];
+    const r = await apiFetch(path, { method: 'POST', body: JSON.stringify(body) });
+    addMessage('assistant', r.response || r.result || JSON.stringify(r, null, 2));
+  } catch(e) {
+    addMessage('assistant', '❌ ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    $('chat-send-label').textContent = 'Send ▶';
+  }
+}
+
+function clearChat() {
+  $('chat-messages').innerHTML = '';
+}
+</script>
+
+<script>
+// ══════════════════════════════════════════════════════════════
+// PANEL 2 — GLOBAL INTELLIGENCE
+// ══════════════════════════════════════════════════════════════
+let currentIntelView = 'geopolitics';
+
+function switchIntelView(view) {
+  currentIntelView = view;
+  const ctrl = $('intel-controls');
+  ctrl.innerHTML = '';
+
+  if (view === 'geopolitics') {
+    ctrl.innerHTML = `
+      <label>Country</label>
+      <input id="geo-country" placeholder="e.g. Ukraine" style="width:130px;background:var(--bg2);border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:6px;font-size:12px;outline:none">
+      <label>Days</label>
+      <select id="geo-days" style="background:var(--bg2);border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:6px;font-size:12px;outline:none">
+        <option value="7">7 days</option><option value="30" selected>30 days</option><option value="90">90 days</option>
+      </select>
+      <label>Limit</label>
+      <input id="geo-limit" value="50" style="width:60px;background:var(--bg2);border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:6px;font-size:12px;outline:none">`;
+  } else if (view === 'maritime') {
+    ctrl.innerHTML = `
+      <label>IMO Number</label>
+      <input id="vessel-imo" placeholder="e.g. 9321483" style="width:130px;background:var(--bg2);border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:6px;font-size:12px;outline:none">
+      <span style="font-size:11px;color:var(--text2)">(requires MarineTraffic API key)</span>`;
+  } else if (view === 'calendar') {
+    ctrl.innerHTML = `
+      <label>Country</label>
+      <input id="cal-country" placeholder="US, EU, JP..." style="width:100px;background:var(--bg2);border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:6px;font-size:12px;outline:none">
+      <label>Limit</label>
+      <input id="cal-limit" value="25" style="width:60px;background:var(--bg2);border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:6px;font-size:12px;outline:none">`;
+  } else if (view === 'central-banks') {
+    ctrl.innerHTML = `
+      <label>Bank</label>
+      <select id="cb-bank" style="background:var(--bg2);border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:6px;font-size:12px;outline:none">
+        <option value="fed">🇺🇸 Fed</option><option value="ecb">🇪🇺 ECB</option>
+        <option value="boj">🇯🇵 BoJ</option><option value="boe">🇬🇧 BoE</option><option value="rba">🇦🇺 RBA</option>
+      </select>
+      <label>Series</label>
+      <input id="cb-series" value="policy_rate" style="width:130px;background:var(--bg2);border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:6px;font-size:12px;outline:none">`;
+  }
+}
+
+async function loadIntelData() {
+  const content = $('intel-content');
+  content.innerHTML = '<div style="color:var(--text2);padding:40px;text-align:center"><span class="spinner"></span> Loading...</div>';
+  $('intel-detail').innerHTML = 'Click a row to see details';
+
+  try {
+    if (currentIntelView === 'geopolitics') {
+      const country = ($('geo-country') || {}).value || '';
+      const days = ($('geo-days') || {}).value || 30;
+      const limit = ($('geo-limit') || {}).value || 50;
+      let url = `/api/v1/intelligence/geopolitics/events?days=${days}&limit=${limit}`;
+      if (country) url += `&country=${encodeURIComponent(country)}`;
+      const r = await apiFetch(url);
+      renderGeoEvents(r.events || r.data || []);
+
+    } else if (currentIntelView === 'maritime') {
+      const imo = ($('vessel-imo') || {}).value || '9321483';
+      const r = await apiFetch(`/api/v1/intelligence/maritime/vessel/${imo}`);
+      renderVesselDetail(r);
+
+    } else if (currentIntelView === 'calendar') {
+      const country = ($('cal-country') || {}).value || '';
+      const limit = ($('cal-limit') || {}).value || 25;
+      let url = `/api/v1/intelligence/economics/calendar?limit=${limit}`;
+      if (country) url += `&country=${encodeURIComponent(country)}`;
+      const r = await apiFetch(url);
+      renderCalendar(r.events || r.data || []);
+
+    } else if (currentIntelView === 'central-banks') {
+      const bank = ($('cb-bank') || {}).value || 'fed';
+      const series = ($('cb-series') || {}).value || 'policy_rate';
+      const r = await apiFetch(`/api/v1/intelligence/economics/central-banks/${bank}?series=${series}&start=2015-01-01`);
+      renderCentralBank(r, bank, series);
+    }
+  } catch(e) {
+    content.innerHTML = `<div style="color:var(--red);padding:20px">❌ ${e.message}</div>`;
+    toast(e.message, 'err');
+  }
+}
+
+function renderGeoEvents(events) {
+  if (!events.length) { $('intel-content').innerHTML = '<div style="color:var(--text2);padding:40px;text-align:center">No events found</div>'; return; }
+  const typeColors = { 'Battles': 'red', 'Explosions/Remote violence': 'red', 'Violence against civilians': 'red', 'Protests': 'yellow', 'Riots': 'yellow', 'Strategic developments': 'blue' };
+  let html = `<table style="width:100%;border-collapse:collapse;font-size:12px">
+    <thead><tr style="background:var(--bg3);color:var(--text2)">
+      <th style="padding:8px 10px;text-align:left;border-bottom:1px solid var(--border)">Date</th>
+      <th style="padding:8px 10px;text-align:left;border-bottom:1px solid var(--border)">Country</th>
+      <th style="padding:8px 10px;text-align:left;border-bottom:1px solid var(--border)">Type</th>
+      <th style="padding:8px 10px;text-align:left;border-bottom:1px solid var(--border)">Location</th>
+      <th style="padding:8px 10px;text-align:right;border-bottom:1px solid var(--border)">Fatalities</th>
+    </tr></thead><tbody>`;
+  events.forEach((e, i) => {
+    const color = typeColors[e.event_type] || 'blue';
+    html += `<tr style="border-bottom:1px solid var(--border);cursor:pointer" onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background=''" onclick="showGeoDetail(${i})">
+      <td style="padding:7px 10px;color:var(--text2)">${e.event_date || ''}</td>
+      <td style="padding:7px 10px">${e.country || ''}</td>
+      <td style="padding:7px 10px"><span class="badge badge-${color}" style="font-size:10px">${e.event_type || ''}</span></td>
+      <td style="padding:7px 10px;color:var(--text2)">${e.location || e.admin1 || ''}</td>
+      <td style="padding:7px 10px;text-align:right;color:${(e.fatalities||0)>0?'var(--red)':'var(--text2)'}">${e.fatalities || 0}</td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  $('intel-content').innerHTML = html;
+  window._geoEvents = events;
+}
+
+function showGeoDetail(i) {
+  const e = window._geoEvents[i];
+  if (!e) return;
+  $('intel-detail').innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div style="font-weight:600;font-size:14px">${e.event_type || 'Event'}</div>
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 12px;font-size:12px">
+        <span style="color:var(--text2)">Date</span><span>${e.event_date || '—'}</span>
+        <span style="color:var(--text2)">Country</span><span>${e.country || '—'}</span>
+        <span style="color:var(--text2)">Location</span><span>${e.location || '—'}</span>
+        <span style="color:var(--text2)">Admin1</span><span>${e.admin1 || '—'}</span>
+        <span style="color:var(--text2)">Fatalities</span><span style="color:${(e.fatalities||0)>0?'var(--red)':'inherit'}">${e.fatalities || 0}</span>
+        <span style="color:var(--text2)">Source</span><span>${e.source || '—'}</span>
+      </div>
+      ${e.notes ? `<div style="background:var(--bg3);border-radius:6px;padding:10px;font-size:12px;line-height:1.6;color:var(--text2)">${e.notes}</div>` : ''}
+    </div>`;
+}
+
+function renderVesselDetail(r) {
+  const d = r.data || r;
+  $('intel-content').innerHTML = `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:20px;max-width:500px">
+    <div style="font-size:16px;font-weight:600;margin-bottom:16px">🚢 ${d.name || 'Vessel'}</div>
+    <div style="display:grid;grid-template-columns:auto 1fr;gap:8px 16px;font-size:13px">
+      ${Object.entries(d).filter(([k]) => !['success','metadata'].includes(k)).map(([k,v]) =>
+        `<span style="color:var(--text2)">${k}</span><span>${v ?? '—'}</span>`).join('')}
+    </div></div>`;
+}
+
+function renderCalendar(events) {
+  if (!events.length) { $('intel-content').innerHTML = '<div style="color:var(--text2);padding:40px;text-align:center">No events found</div>'; return; }
+  const impColors = { 'High': 'red', 'Medium': 'yellow', 'Low': 'blue' };
+  let html = `<table style="width:100%;border-collapse:collapse;font-size:12px">
+    <thead><tr style="background:var(--bg3);color:var(--text2)">
+      <th style="padding:8px 10px;text-align:left;border-bottom:1px solid var(--border)">Date/Time</th>
+      <th style="padding:8px 10px;text-align:left;border-bottom:1px solid var(--border)">Country</th>
+      <th style="padding:8px 10px;text-align:left;border-bottom:1px solid var(--border)">Event</th>
+      <th style="padding:8px 10px;text-align:center;border-bottom:1px solid var(--border)">Impact</th>
+      <th style="padding:8px 10px;text-align:right;border-bottom:1px solid var(--border)">Actual</th>
+      <th style="padding:8px 10px;text-align:right;border-bottom:1px solid var(--border)">Forecast</th>
+      <th style="padding:8px 10px;text-align:right;border-bottom:1px solid var(--border)">Previous</th>
+    </tr></thead><tbody>`;
+  events.forEach(e => {
+    const imp = e.importance || e.impact || '';
+    const color = impColors[imp] || 'blue';
+    html += `<tr style="border-bottom:1px solid var(--border)" onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background=''">
+      <td style="padding:7px 10px;color:var(--text2);white-space:nowrap">${e.date || ''} ${e.time || ''}</td>
+      <td style="padding:7px 10px">${e.country || ''}</td>
+      <td style="padding:7px 10px;font-weight:500">${e.event || e.name || ''}</td>
+      <td style="padding:7px 10px;text-align:center"><span class="badge badge-${color}" style="font-size:10px">${imp}</span></td>
+      <td style="padding:7px 10px;text-align:right;font-weight:600">${e.actual ?? '—'}</td>
+      <td style="padding:7px 10px;text-align:right;color:var(--text2)">${e.forecast ?? '—'}</td>
+      <td style="padding:7px 10px;text-align:right;color:var(--text2)">${e.previous ?? '—'}</td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  $('intel-content').innerHTML = html;
+}
+
+function renderCentralBank(r, bank, series) {
+  const data = r.data || r.observations || [];
+  if (!data.length) { $('intel-content').innerHTML = '<div style="color:var(--text2);padding:40px;text-align:center">No data</div>'; return; }
+  const bankNames = { fed: 'Federal Reserve', ecb: 'ECB', boj: 'Bank of Japan', boe: 'Bank of England', rba: 'Reserve Bank of Australia' };
+  $('intel-content').innerHTML = `
+    <div style="margin-bottom:12px;font-size:14px;font-weight:600">${bankNames[bank] || bank} — ${series}</div>
+    <div id="cb-mini-chart" style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:16px;height:200px;position:relative;overflow:hidden"></div>
+    <div style="margin-top:12px;max-height:300px;overflow-y:auto">
+    <table style="width:100%;border-collapse:collapse;font-size:12px">
+      <thead><tr style="background:var(--bg3)"><th style="padding:7px 10px;text-align:left;border-bottom:1px solid var(--border)">Date</th><th style="padding:7px 10px;text-align:right;border-bottom:1px solid var(--border)">Value</th></tr></thead>
+      <tbody>${data.slice(-20).reverse().map(d => `<tr style="border-bottom:1px solid var(--border)" onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background=''"><td style="padding:6px 10px;color:var(--text2)">${d.date||d.period||''}</td><td style="padding:6px 10px;text-align:right;font-weight:600">${d.value??'—'}</td></tr>`).join('')}
+      </tbody></table></div>`;
+  drawMiniChart('cb-mini-chart', data);
+}
+</script>
+
+<script>
+// ══════════════════════════════════════════════════════════════
+// PANEL 3 — ECONOMIC RESEARCH
+// ══════════════════════════════════════════════════════════════
+const POPULAR = [
+  { id: 'CPIAUCSL', name: 'CPI (Inflation)' },
+  { id: 'UNRATE', name: 'Unemployment Rate' },
+  { id: 'GDP', name: 'US GDP' },
+  { id: 'FEDFUNDS', name: 'Fed Funds Rate' },
+  { id: 'DGS10', name: '10Y Treasury Yield' },
+  { id: 'M2SL', name: 'M2 Money Supply' },
+  { id: 'INDPRO', name: 'Industrial Production' },
+  { id: 'HOUST', name: 'Housing Starts' },
+  { id: 'PAYEMS', name: 'Nonfarm Payrolls' },
+  { id: 'UMCSENT', name: 'Consumer Sentiment' },
+  { id: 'DEXUSEU', name: 'USD/EUR Exchange' },
+  { id: 'DCOILWTICO', name: 'WTI Crude Oil' },
+];
+
+function initPopularSeries() {
+  const el = $('popular-series');
+  POPULAR.forEach(s => {
+    const btn = document.createElement('button');
+    btn.className = 'btn btn-secondary btn-sm';
+    btn.style.cssText = 'width:100%;justify-content:flex-start;text-align:left;font-size:11px;padding:5px 8px';
+    btn.innerHTML = `<span style="color:var(--text2);font-family:monospace;font-size:10px;min-width:70px">${s.id}</span> ${s.name}`;
+    btn.onclick = () => { $('fred-series').value = s.id; loadEconData(); };
+    el.appendChild(btn);
+  });
+}
+
+function switchEconSource(src) {
+  const ctrl = $('econ-controls');
+  if (src === 'fred') {
+    ctrl.innerHTML = `
+      <label>Series ID</label>
+      <input id="fred-series" value="CPIAUCSL" style="width:130px;background:var(--bg2);border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:6px;font-size:12px;outline:none" placeholder="e.g. GDP, UNRATE">
+      <label>Start</label>
+      <input id="fred-start" value="2020-01-01" style="width:110px;background:var(--bg2);border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:6px;font-size:12px;outline:none">`;
+  } else if (src === 'worldbank') {
+    ctrl.innerHTML = `
+      <label>Indicator</label>
+      <input id="wb-indicator" value="NY.GDP.MKTP.CD" style="width:160px;background:var(--bg2);border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:6px;font-size:12px;outline:none">
+      <label>Country</label>
+      <input id="wb-country" value="US" style="width:80px;background:var(--bg2);border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:6px;font-size:12px;outline:none">`;
+  } else if (src === 'central-bank') {
+    ctrl.innerHTML = `
+      <label>Bank</label>
+      <select id="econ-cb-bank" style="background:var(--bg2);border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:6px;font-size:12px;outline:none">
+        <option value="fed">Fed</option><option value="ecb">ECB</option><option value="boj">BoJ</option><option value="boe">BoE</option><option value="rba">RBA</option>
+      </select>
+      <label>Series</label>
+      <input id="econ-cb-series" value="policy_rate" style="width:130px;background:var(--bg2);border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:6px;font-size:12px;outline:none">`;
+  }
+}
+
+async function loadEconData() {
+  const src = $('econ-source').value;
+  $('econ-chart-container').innerHTML = '<span class="spinner"></span>';
+  $('econ-meta').style.display = 'none';
+  $('econ-table-container').style.display = 'none';
+
+  try {
+    let r, title = '', units = '';
+    if (src === 'fred') {
+      const series = ($('fred-series') || {}).value || 'CPIAUCSL';
+      const start = ($('fred-start') || {}).value || '2020-01-01';
+      r = await apiFetch(`/api/v1/intelligence/economics/fred/${series}?start=${start}`);
+      title = r.title || r.series_id || series;
+      units = r.units || '';
+    } else if (src === 'worldbank') {
+      const ind = ($('wb-indicator') || {}).value || 'NY.GDP.MKTP.CD';
+      const country = ($('wb-country') || {}).value || 'US';
+      r = await apiFetch(`/api/v1/intelligence/economics/worldbank/${ind}/${country}`);
+      title = `${r.indicator || ind} — ${r.country || country}`;
+    } else if (src === 'central-bank') {
+      const bank = ($('econ-cb-bank') || {}).value || 'fed';
+      const series = ($('econ-cb-series') || {}).value || 'policy_rate';
+      r = await apiFetch(`/api/v1/intelligence/economics/central-banks/${bank}?series=${series}&start=2010-01-01`);
+      title = `${bank.toUpperCase()} — ${series}`;
+    }
+
+    const obs = r.observations || r.data || r.series?.[0]?.data || [];
+    if (!obs.length) throw new Error('No data returned');
+
+    // Meta
+    $('econ-meta').style.display = 'block';
+    $('econ-meta').innerHTML = `
+      <div style="display:flex;gap:24px;align-items:center;flex-wrap:wrap">
+        <div><div style="font-size:11px;color:var(--text2)">Series</div><div style="font-weight:600;font-size:15px">${title}</div></div>
+        ${units ? `<div><div style="font-size:11px;color:var(--text2)">Units</div><div>${units}</div></div>` : ''}
+        <div><div style="font-size:11px;color:var(--text2)">Observations</div><div>${obs.length}</div></div>
+        <div><div style="font-size:11px;color:var(--text2)">Latest</div><div style="font-weight:600;color:var(--blue)">${obs[obs.length-1]?.value ?? '—'}</div></div>
+        <div><div style="font-size:11px;color:var(--text2)">Date</div><div>${obs[obs.length-1]?.date || obs[obs.length-1]?.period || '—'}</div></div>
+      </div>`;
+
+    // Chart
+    $('econ-chart-container').innerHTML = '<canvas id="econ-canvas" style="width:100%;height:280px"></canvas>';
+    drawLineChart('econ-canvas', obs, title);
+
+    // Table (last 20)
+    $('econ-table-container').style.display = 'block';
+    $('econ-table-container').innerHTML = `
+      <div style="font-size:12px;color:var(--text2);margin-bottom:8px">Recent observations (last 20)</div>
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead><tr style="background:var(--bg3)"><th style="padding:7px 10px;text-align:left;border-bottom:1px solid var(--border)">Date</th><th style="padding:7px 10px;text-align:right;border-bottom:1px solid var(--border)">Value</th></tr></thead>
+        <tbody>${obs.slice(-20).reverse().map(d => `<tr style="border-bottom:1px solid var(--border)" onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background=''"><td style="padding:6px 10px;color:var(--text2)">${d.date||d.period||''}</td><td style="padding:6px 10px;text-align:right;font-weight:600">${d.value??'—'}</td></tr>`).join('')}
+        </tbody></table>`;
+    toast('Data loaded ✓', 'ok');
+  } catch(e) {
+    $('econ-chart-container').innerHTML = `<div style="color:var(--red)">❌ ${e.message}</div>`;
+    toast(e.message, 'err');
+  }
+}
+
+async function searchFred() {
+  const q = $('fred-search-input').value.trim();
+  if (!q) return;
+  const results = $('fred-search-results');
+  results.innerHTML = '<span class="spinner"></span>';
+  try {
+    const r = await apiFetch(`/api/v1/intelligence/economics/fred/search?q=${encodeURIComponent(q)}&limit=8`);
+    const series = r.series || r.data || [];
+    results.innerHTML = '';
+    series.forEach(s => {
+      const btn = document.createElement('button');
+      btn.className = 'btn btn-secondary btn-sm';
+      btn.style.fontSize = '11px';
+      btn.title = s.title || s.name || '';
+      btn.textContent = s.id || s.series_id;
+      btn.onclick = () => { $('fred-series').value = s.id || s.series_id; loadEconData(); };
+      results.appendChild(btn);
+    });
+    if (!series.length) results.innerHTML = '<span style="font-size:12px;color:var(--text2)">No results</span>';
+  } catch(e) {
+    results.innerHTML = `<span style="font-size:12px;color:var(--red)">${e.message}</span>`;
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// MINI CHART (Canvas — no dependencies)
+// ══════════════════════════════════════════════════════════════
+function drawLineChart(canvasId, data, title) {
+  const canvas = $(canvasId);
+  if (!canvas) return;
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = 280 * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  const W = rect.width, H = 280;
+  const pad = { top: 20, right: 20, bottom: 40, left: 60 };
+
+  const vals = data.map(d => parseFloat(d.value)).filter(v => !isNaN(v));
+  if (!vals.length) return;
+  const minV = Math.min(...vals), maxV = Math.max(...vals);
+  const range = maxV - minV || 1;
+
+  const toX = i => pad.left + (i / (data.length - 1)) * (W - pad.left - pad.right);
+  const toY = v => pad.top + (1 - (v - minV) / range) * (H - pad.top - pad.bottom);
+
+  // Background
+  ctx.fillStyle = '#161b22';
+  ctx.fillRect(0, 0, W, H);
+
+  // Grid lines
+  ctx.strokeStyle = '#30363d'; ctx.lineWidth = 0.5;
+  for (let i = 0; i <= 4; i++) {
+    const y = pad.top + (i / 4) * (H - pad.top - pad.bottom);
+    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(W - pad.right, y); ctx.stroke();
+    const val = maxV - (i / 4) * range;
+    ctx.fillStyle = '#8b949e'; ctx.font = '10px system-ui'; ctx.textAlign = 'right';
+    ctx.fillText(val.toFixed(2), pad.left - 6, y + 4);
+  }
+
+  // X labels (every ~10%)
+  const step = Math.max(1, Math.floor(data.length / 8));
+  ctx.fillStyle = '#8b949e'; ctx.font = '10px system-ui'; ctx.textAlign = 'center';
+  for (let i = 0; i < data.length; i += step) {
+    const d = data[i]; const label = (d.date || d.period || '').slice(0, 7);
+    ctx.fillText(label, toX(i), H - 8);
+  }
+
+  // Area fill
+  const gradient = ctx.createLinearGradient(0, pad.top, 0, H - pad.bottom);
+  gradient.addColorStop(0, 'rgba(88,166,255,0.3)');
+  gradient.addColorStop(1, 'rgba(88,166,255,0.02)');
+  ctx.beginPath();
+  ctx.moveTo(toX(0), toY(vals[0]));
+  vals.forEach((v, i) => ctx.lineTo(toX(i), toY(v)));
+  ctx.lineTo(toX(vals.length - 1), H - pad.bottom);
+  ctx.lineTo(toX(0), H - pad.bottom);
+  ctx.closePath();
+  ctx.fillStyle = gradient; ctx.fill();
+
+  // Line
+  ctx.beginPath(); ctx.strokeStyle = '#58a6ff'; ctx.lineWidth = 1.5;
+  vals.forEach((v, i) => i === 0 ? ctx.moveTo(toX(i), toY(v)) : ctx.lineTo(toX(i), toY(v)));
+  ctx.stroke();
+
+  // Last point dot
+  const lastI = vals.length - 1;
+  ctx.beginPath(); ctx.arc(toX(lastI), toY(vals[lastI]), 4, 0, Math.PI * 2);
+  ctx.fillStyle = '#58a6ff'; ctx.fill();
+}
+
+function drawMiniChart(containerId, data) {
+  const container = $(containerId);
+  if (!container) return;
+  container.innerHTML = '<canvas id="mini-canvas" style="width:100%;height:180px"></canvas>';
+  drawLineChart('mini-canvas', data, '');
+}
+
+// ══════════════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════════════
+window.addEventListener('DOMContentLoaded', () => {
+  checkHealth();
+  switchIntelView('geopolitics');
+  switchEconSource('fred');
+  initPopularSeries();
+  loadAgents();
+
+  // Auto-resize textarea
+  $('chat-input').addEventListener('input', function() {
+    this.style.height = 'auto';
+    this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+  });
+});
+</script>
+</body>
+</html>

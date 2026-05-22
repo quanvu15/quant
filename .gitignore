@@ -6,6 +6,7 @@ fincept-qt/build/
 fincept-qt/build-*/
 fincept-qt/build_*/
 fincept-qt/tmpqt/
+fincept-qt/venv-numpy2/
 tmpqt/
 CMakeCache.txt
 CMakeFiles/
@@ -157,30 +158,160 @@ docs/superpowers/
 .grill-me/
 **/.grill-me/
 
-# ── Local planning docs ───────────────────────────────────────
-plans/
-**/plans/
-
 # ── Kiro spec files (internal planning) ───────────────────────
 .kiro/
 .kiro/
 
-# ── QuantDinger integration (separate project) ────────────────
-quant-dinger/
-quant-dinger/
+# ── Garbage / Unnecessary files (NEW) ────────────────────────
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
 
-# ── Analytics microservice (separate project) ─────────────────
-analytics/
-analytics/
+# Backup files
+*~
+*.backup
+*.bak
 
-# ── Internal Crypto Center phase notes ────────────────────────
-fincept-qt/docs/CRYPTO_CENTER_PHASE_2.md
-fincept-qt/docs/CRYPTO_CENTER_PHASE_3.md
-fincept-qt/docs/CRYPTO_CENTER_PHASE_4.md
-fincept-qt/docs/CRYPTO_CENTER_PHASE_5.md
-fincept-qt/docs/CRYPTO_WALLET_CONNECT.md
+# OS generated files
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
 
-# ── Markdown files — only README.md is tracked ────────────────
-*.md
-!README.md
-!**/README.md
+# Thumbnails
+._*
+
+# Files that should never be committed
+*.orig
+*.rej
+*~
+
+# Editor swap files
+*.swp
+*.swo
+*~
+
+# IDE temp files
+.idea/**/workspace.xml
+.idea/**/tasks.xml
+.idea/**/dictionaries
+.idea/**/shelf
+
+# Git generated files
+.gitattributes
+.gitignore
+
+# Documentation temp files
+*.md.bak
+*.md.tmp
+
+# Test coverage reports (runtime)
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+
+# Docker temp files
+.docker/
+
+# Build artifacts that shouldn't be committed
+*.o
+*.obj
+*.framework
+*.xcworkspace
+*.xcodeproj
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+*.orig
+project.pbxproj
+*.pbxlock
+
+# Python virtualenv backup files
+venv-backup/
+venv.bak/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# pipenv
+Pipfile.lock
+
+# poetry
+poetry.lock
+
+# pdm
+.pdm.toml
+
+# PEP 582
+__pypackages__/
+
+# Celery stuff
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# pytype static type analyzer
+.pytype/
+
+# Cython debug symbols
+cython_debug/
+
+# PyCharm
+.idea/
+
+# VSCode
+.vscode/
+
+# OS X
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Thumbnails
+._*
+
+# Files that might appear on external disk
+.Spotlight-V100
+.Trashes

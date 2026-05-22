@@ -79,7 +79,9 @@ def _rate_limit_fincept() -> None:
             except Exception:
                 pass
 
-FINCEPT_DEFAULT_URL = "https://api.fincept.in/research/llm"
+# Self-hosted LLM endpoint — read from env, fall back to local analytics service.
+# Set ANALYTICS_LLM_URL in your environment to point to your self-hosted endpoint.
+FINCEPT_DEFAULT_URL = os.environ.get("ANALYTICS_LLM_URL", "http://localhost:8000/research/llm")
 
 
 # ── Anthropic tool schema builder ─────────────────────────────────────────────

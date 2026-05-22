@@ -1,0 +1,58 @@
+# ============================================================
+# Fincept API — Python dependencies
+# Python 3.11.9
+# ============================================================
+
+# ── Web framework ─────────────────────────────────────────────
+fastapi==0.115.12
+uvicorn[standard]==0.34.3
+gunicorn==23.0.0          # production ASGI server
+
+# ── Validation ────────────────────────────────────────────────
+pydantic==2.11.5
+pydantic-settings==2.9.1
+
+# ── Auth ──────────────────────────────────────────────────────
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+
+# ── Database (SQLAlchemy + Alembic) ──────────────────────────
+sqlalchemy==2.0.41
+alembic==1.16.1
+asyncpg==0.30.0           # async Postgres driver
+psycopg2-binary==2.9.10   # sync driver for Alembic migrations
+
+# ── Cache ─────────────────────────────────────────────────────
+redis[hiredis]==5.3.0
+
+# ── Async job queue (Phase 5) ─────────────────────────────────
+celery[redis]==5.5.2
+
+# ── HTTP client ───────────────────────────────────────────────
+httpx==0.28.1
+
+# ── News pipeline (Phase 1) ───────────────────────────────────
+feedparser==6.0.11          # RSS/Atom feed parsing (BSD-2-Clause)
+# NLP — install separately in Docker (large models):
+#   pip install transformers torch spacy
+#   python -m spacy download en_core_web_sm
+# transformers==4.44.2      # FinBERT sentiment (Apache 2.0)
+# torch==2.4.0              # PyTorch backend for transformers
+# spacy==3.7.6              # NER (MIT)
+
+# ── Logging ───────────────────────────────────────────────────
+structlog==25.3.0
+
+# ── Monitoring (optional — no-op fallback nếu không cài) ──────
+prometheus-client==0.21.0
+
+# ── Testing ───────────────────────────────────────────────────
+pytest==8.3.5
+pytest-asyncio==0.26.0
+pytest-cov==6.1.0
+# httpx already listed above — used as async test client too
+
+# ── Linting / type checking ───────────────────────────────────
+ruff==0.11.11
+mypy==1.16.0
+types-redis==4.6.0.20241004
