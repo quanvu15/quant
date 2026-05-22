@@ -1,0 +1,13 @@
+{
+  "name": "Update Progress After Task",
+  "version": "1.0.0",
+  "description": "Sau khi agent hoàn thành bất kỳ thao tác ghi file nào, nhắc agent cập nhật WORKLOGS.md và đánh checkbox trong PLAN.md",
+  "when": {
+    "type": "postToolUse",
+    "toolTypes": ["write"]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Nếu bạn vừa hoàn thành một task trong PLAN.md (không phải chỉ sửa WORKLOGS.md hay PLAN.md), hãy thực hiện ngay:\n1. Thêm entry mới vào WORKLOGS.md theo format trong .kiro/steering/progress-tracking.md\n2. Đánh [x] cho task tương ứng trong PLAN.md\n3. Cập nhật trạng thái Phase nếu tất cả tasks đã xong\n\nNếu bạn vừa cập nhật WORKLOGS.md hoặc PLAN.md thì bỏ qua hook này."
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "name": "Phase Transition Gate",
+  "version": "1.0.0",
+  "description": "Khi agent vừa đánh [x] cho task cuối cùng của một Phase trong PLAN.md, bắt buộc chạy Test Gate và Code Review trước khi chuyển Phase tiếp theo",
+  "when": {
+    "type": "postToolUse",
+    "toolTypes": ["write"]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Kiểm tra nhanh: bạn vừa đánh [x] cho task nào trong PLAN.md không?\n\nNếu CÓ và đó là task CUỐI CÙNG của một Phase (tất cả tasks trong Phase đó đã [x]):\n\n🚨 DỪNG LẠI — KHÔNG bắt đầu Phase tiếp theo ngay.\n\nBạn phải thực hiện đủ 3 cổng kiểm tra theo .kiro/steering/implementation-guide.md mục 8:\n\n1. **TEST GATE** — Chạy toàn bộ test suite cho Phase vừa xong:\n   - Chạy `pytest tests/test_{module}.py -v`\n   - Verify từng tiêu chí trong mục 8.2 của implementation-guide.md\n   - Tất cả phải PASS mới được tiếp tục\n\n2. **CODE REVIEW GATE** — Tự review theo checklist mục 8.3:\n   - Correctness: endpoints đủ, URL đúng, schema đúng\n   - Security: không leak API keys, input validation\n   - Performance: không blocking calls, cache đúng TTL\n   - Code quality: no dead code, type hints, docstrings\n   - Tests: coverage ≥ 70%\n\n3. **SIGN-OFF GATE** — Viết báo cáo theo format mục 8.4 và hỏi người dùng:\n   'Phase N đã pass Test Gate và Code Review. Bạn có muốn tôi bắt đầu Phase N+1 không?'\n\nNếu KHÔNG phải task cuối của Phase → bỏ qua hook này và tiếp tục bình thường."
+  }
+}

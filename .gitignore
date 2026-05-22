@@ -158,10 +158,6 @@ docs/superpowers/
 .grill-me/
 **/.grill-me/
 
-# ── Kiro spec files (internal planning) ───────────────────────
-.kiro/
-.kiro/
-
 # ── Garbage / Unnecessary files (NEW) ────────────────────────
 # Temporary files
 *.tmp

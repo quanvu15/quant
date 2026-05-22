@@ -1,0 +1,13 @@
+{
+  "name": "Scope Guard — Prevent Plan Deviation",
+  "version": "1.0.0",
+  "description": "Khi agent chuẩn bị tạo file mới, kiểm tra file đó có nằm trong scope của PLAN.md không",
+  "when": {
+    "type": "preToolUse",
+    "toolTypes": ["write"]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Trước khi tạo/sửa file này, kiểm tra nhanh:\n\n1. File này có thuộc task đang làm trong PLAN.md không?\n2. Nếu là file code mới (không phải WORKLOGS.md, PLAN.md, hay config): file này có nằm trong cấu trúc thư mục `fincept-api/` đã định trong PLAN.md không?\n3. Nếu đang thêm dependency mới vào requirements.txt: dependency đó có được PLAN.md đề cập không?\n\nNếu câu trả lời là KHÔNG cho bất kỳ câu nào → giải thích lý do trước khi tiếp tục.\nNếu tất cả đều OK → tiến hành bình thường."
+  }
+}

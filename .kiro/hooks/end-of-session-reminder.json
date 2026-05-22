@@ -1,0 +1,12 @@
+{
+  "name": "End of Session Progress Check",
+  "version": "1.0.0",
+  "description": "Khi agent kết thúc phiên làm việc, kiểm tra xem WORKLOGS.md và PLAN.md đã được cập nhật đầy đủ chưa",
+  "when": {
+    "type": "agentStop"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Trước khi kết thúc phiên này, hãy kiểm tra:\n\n1. Đọc WORKLOGS.md — có entry nào cho công việc vừa làm chưa?\n2. Đọc PLAN.md — các task vừa hoàn thành đã được đánh [x] chưa?\n3. Bảng 'Thống kê tiến độ' trong WORKLOGS.md có được cập nhật số liệu chưa?\n\nNếu thiếu bất kỳ mục nào, hãy cập nhật ngay bây giờ theo format trong .kiro/steering/progress-tracking.md."
+  }
+}

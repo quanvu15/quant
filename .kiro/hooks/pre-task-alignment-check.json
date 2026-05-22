@@ -1,0 +1,12 @@
+{
+  "name": "Pre-Task Alignment Check",
+  "version": "1.0.0",
+  "description": "Trước khi agent bắt đầu viết code, kiểm tra alignment với PLAN.md và hỏi lại nếu chưa rõ",
+  "when": {
+    "type": "preTaskExecution"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Trước khi bắt đầu task này, hãy thực hiện alignment check:\n\n1. Đọc PLAN.md để xác định task ID và Phase tương ứng\n2. Đọc WORKLOGS.md để biết trạng thái hiện tại của dự án\n3. Trả lời 5 câu hỏi trong .kiro/steering/implementation-guide.md mục 6\n\nNếu có bất kỳ điều gì chưa rõ về:\n- Scope của task\n- Tech stack cần dùng\n- Dependency với task/phase khác\n- Tiêu chí hoàn thành\n\n→ DỪNG LẠI và hỏi người dùng trước khi viết code. Mô tả rõ vấn đề và đưa ra 2-3 phương án để người dùng chọn."
+  }
+}
