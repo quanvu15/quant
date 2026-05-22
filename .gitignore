@@ -161,6 +161,18 @@ docs/superpowers/
 plans/
 **/plans/
 
+# ── Kiro spec files (internal planning) ───────────────────────
+.kiro/
+.kiro/
+
+# ── QuantDinger integration (separate project) ────────────────
+quant-dinger/
+quant-dinger/
+
+# ── Analytics microservice (separate project) ─────────────────
+analytics/
+analytics/
+
 # ── Internal Crypto Center phase notes ────────────────────────
 fincept-qt/docs/CRYPTO_CENTER_PHASE_2.md
 fincept-qt/docs/CRYPTO_CENTER_PHASE_3.md
